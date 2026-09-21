@@ -21,6 +21,7 @@ def plot_score_lmbdas(data, target, pow,  ts, rs, lmbda_min = -8, lmbda_max = 2,
     lmbdas = np.logspace(lmbda_min, lmbda_max, nlmbdas)
     mses = np.zeros_like(lmbdas, dtype = float)
     R2s = np.zeros_like(lmbdas, dtype = float)
+    theta_norms = np.zeros_like(lmbdas, dtype = float)
 
     for p in range(nlmbdas):
         X = design_matrix(data, pow)
@@ -32,6 +33,7 @@ def plot_score_lmbdas(data, target, pow,  ts, rs, lmbda_min = -8, lmbda_max = 2,
 
         mses[p] = mse_score
         R2s[p] = R2_score
+        theta_norms[p] = np.linalg.norm(theta)
 
     plt.plot(lmbdas, mses, "o-", label = "MSE score")
     plt.xlabel("$\\lambda$")
@@ -46,6 +48,12 @@ def plot_score_lmbdas(data, target, pow,  ts, rs, lmbda_min = -8, lmbda_max = 2,
     plt.xscale("log")
     plt.legend()
     plt.show() 
+    plt.plot(lmbdas, theta_norms, "o-", label = "$\\|\\theta \\|$")
+    plt.xlabel("$\\lambda$")
+    plt.yscale("log")
+    plt.xscale("log")
+    plt.legend()
+    plt.show()
 
 if __name__ == "__main__":
     rs = 2026
