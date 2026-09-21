@@ -1,6 +1,6 @@
 from part_a import *
 
-def plot_test_train_mse(data, target, ts = 0.2, degree_max = 15, method = OLS, rs = 2026):
+def plot_test_train_mse(data, target, ts = 0.2, degree_max = 15, method = OLS, rs = 3155):
 
     """
     Input data, target variable, training size, and maximum degree of polnomial.
@@ -33,4 +33,4 @@ def plot_test_train_mse(data, target, ts = 0.2, degree_max = 15, method = OLS, r
 if __name__ == "__main__":
 
     x, y = runge_data()
-    plot_test_train_mse(x, y, degree_max = 17)
+    plot_test_train_mse(x, y, degree_max = 19)
