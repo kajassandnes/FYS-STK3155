@@ -46,6 +46,7 @@ def plot_score_powers(data, target, ts, degree_max, method, rs):
     Plots mse, r2, and coefficients.
     """
     powers = np.arange(1, degree_max + 1)
+    theta_norms = np.zeros(degree_max)
     mses = np.zeros_like(powers, dtype = float)
     R2s = np.zeros_like(powers, dtype = float)
 
@@ -59,6 +60,7 @@ def plot_score_powers(data, target, ts, degree_max, method, rs):
 
         mses[p - 1] = mse_score
         R2s[p - 1] = R2_score
+        theta_norms[p - 1] = np.linalg.norm(theta)
 
 
     plt.plot(powers, mses, "o-", label = "MSE score")
@@ -69,6 +71,10 @@ def plot_score_powers(data, target, ts, degree_max, method, rs):
     plt.plot(powers, R2s, "o-", label = "$R^2$ score")
     plt.xlabel("Powers")
     plt.ylabel("$R^2$")
+    plt.legend()
+    plt.show()
+    plt.plot(powers, theta_norms, "o-", label = "$\\|\\theta \\|$")
+    plt.xlabel("Powers")
     plt.legend()
     plt.show()
     
