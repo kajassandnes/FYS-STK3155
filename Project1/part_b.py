@@ -6,10 +6,10 @@ def ridge(X, target, lmbda = 0.1):
     Input data, lmbda, and target vriable. return polynomial coefficients.
     Uses ridge regression with np.linalg.solve().
     """
-    penalty = np.eye(len(X[0, :]))
-    penalty[0, 0] = 0 #avoid punishing bias
+    n, p = X.shape
+    I = np.eye(p)
 
-    theta = np.linalg.solve(X.T @ X + len(X[0, :]) * lmbda * penalty, X.T @ target)
+    theta = np.linalg.solve(X.T @ X  + n * lmbda * I, X.T @ target)
     return theta
 
 
