@@ -45,7 +45,7 @@ if __name__ == "__main__":
     lmbda_range = np.logspace(-8, 2, nlmbdas)
     p = 20
     k = 5
-    max_degree = 20
+    max_degree = 25
     rs = 2026
     x, y = runge_data(n = 100)
 

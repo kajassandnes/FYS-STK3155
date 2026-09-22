@@ -9,7 +9,7 @@ def ridge(X, target, lmbda = 0.1):
     n, p = X.shape
     I = np.eye(p)
 
-    theta = np.linalg.solve(X.T @ X  + n * lmbda * I, X.T @ target)
+    theta = np.linalg.solve(X.T @ X + lmbda * I, X.T @ target)
     return theta
 
 
