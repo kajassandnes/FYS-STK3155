@@ -12,7 +12,7 @@ def kfold(x, y, k, p, model, rs):
 
     return np.mean(-scores)
 
-def plot_kfold(x, y, k, degree_max, model, rs):
+def plot_kfold_powers(x, y, k, degree_max, model, rs):
 
     powers = np.arange(1, degree_max + 1)
     mses = np.zeros(degree_max)
@@ -25,12 +25,29 @@ def plot_kfold(x, y, k, degree_max, model, rs):
     plt.legend()
     plt.show()
 
+def plot_kfold_lmbdas(x, y, k, p, lmbda_range, rs):
+
+    mses = np.zeros_like(lmbda_range)
+    for i in range(len(lmbda_range)):
+        mses[i] = kfold(x, y, k, p, Ridge(fit_intercept = True, alpha = lmbda_range[i]), rs)
+
+    plt.plot(lmbda_range, mses, "o-", label = "$MSE$")
+    plt.xlabel("$\\lambda$")
+    plt.title(f"{k}-fold cross validation: Ridge on runge data. Degree = {p}")
+    plt.xscale("log")
+    plt.legend()
+    plt.show()
+
 if __name__ == "__main__":
 
-    model = LinearRegression(fit_intercept = False)
+    model = LinearRegression(fit_intercept = True)
+    nlmbdas = 40
+    lmbda_range = np.logspace(-8, 2, nlmbdas)
+    p = 20
     k = 5
     max_degree = 20
     rs = 2026
     x, y = runge_data(n = 100)
 
-    plot_kfold(x, y, k, max_degree, model, rs)
+    #plot_kfold_powers(x, y, k, max_degree, model, rs)
+    plot_kfold_lmbdas(x, y, k, p, lmbda_range, rs)
