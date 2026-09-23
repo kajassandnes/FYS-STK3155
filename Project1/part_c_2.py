@@ -49,7 +49,6 @@ def plot_bias_var(x, y, k, degree_max, n):
         plt.yscale("log")
         plt.legend()
         plt.show()
-        print(variances)
 
 
 if __name__ == "__main__":
@@ -57,6 +56,6 @@ if __name__ == "__main__":
     n = 100
     x, y = runge_data(n = n)
     k = 100
-    degree_max = 14
+    degree_max = 15
 
     plot_bias_var(x, y, k, degree_max, n)

@@ -31,23 +31,31 @@ def plot_kfold_lmbdas(x, y, k, p, lmbda_range, rs):
     for i in range(len(lmbda_range)):
         mses[i] = kfold(x, y, k, p, Ridge(fit_intercept = True, alpha = lmbda_range[i]), rs)
 
-    plt.plot(lmbda_range, mses, "o-", label = "$MSE$")
+    plt.plot(lmbda_range, mses, "o-", label = f"$Degree = {p}$")
+
+def plot_kfold_lmbdas_powers(x, y, k, p_range, lmbda_range, rs):
+
+    for p in p_range:
+        plot_kfold_lmbdas(x, y, k, p, lmbda_range, rs)
+
     plt.xlabel("$\\lambda$")
-    plt.title(f"{k}-fold cross validation: Ridge on runge data. Degree = {p}")
+    plt.title(f"MSE {k}-fold cross validation: Ridge on runge data.")
     plt.xscale("log")
+    plt.yscale("log")
     plt.legend()
     plt.show()
 
 if __name__ == "__main__":
 
     model = LinearRegression(fit_intercept = True)
-    nlmbdas = 40
+    nlmbdas = 20
     lmbda_range = np.logspace(-8, 2, nlmbdas)
+    pow_range = np.arange(15, 21)
     p = 20
     k = 5
     max_degree = 25
     rs = 2026
     x, y = runge_data(n = 100)
 
-    #plot_kfold_powers(x, y, k, max_degree, model, rs)
-    plot_kfold_lmbdas(x, y, k, p, lmbda_range, rs)
+    plot_kfold_powers(x, y, k, max_degree, model, rs)
+    #plot_kfold_lmbdas_powers(x, y, k, pow_range, lmbda_range, rs)
