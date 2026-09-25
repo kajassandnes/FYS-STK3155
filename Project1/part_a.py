@@ -77,6 +77,9 @@ def plot_score_powers(data, target, ts, degree_max, method, rs):
     plt.xlabel("Powers")
     plt.legend()
     plt.show()
+
+    print(f"Lowest mse: {mses[np.argmin(mses)]} (degree: {np.argmin(mses)+1})")
+    print(f"Higest R^2: {R2s[np.argmax(R2s)]} (degree {np.argmax(R2s)+1})")
     
 
 
