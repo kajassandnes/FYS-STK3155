@@ -46,6 +46,7 @@ def plot_bias_var(x, y, k, degree_max, n):
         plt.plot(powers, biases, "o-", label = "$Bias^2 + \\sigma^2$")
         plt.plot(powers, variances, "o-", label = "$Var$")
         plt.title(f"Mean statistics over {k} bootstraps, for {n} datapoints")
+        plt.xlabel("Powers")
         plt.yscale("log")
         plt.legend()
         plt.show()
