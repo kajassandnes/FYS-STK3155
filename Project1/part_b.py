@@ -3,7 +3,7 @@ from part_a import *
 
 def ridge(X, target, lmbda = 0.1):
     """
-    Input data, lmbda, and target vriable. return polynomial coefficients.
+    Input data, lmbda, and target variable. return polynomial coefficients.
     Uses ridge regression with np.linalg.solve().
     """
     n, p = X.shape
