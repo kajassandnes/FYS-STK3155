@@ -3,7 +3,7 @@ from part_a import *
 def plot_test_train_mse(data, target, ts = 0.2, degree_max = 15, method = OLS, rs = 3155):
 
     """
-    Input data, target variable, training size, and maximum degree of polnomial.
+    Input data, target variable, training size, and maximum degree of polynomial.
     Plots mse, r2, and coefficients.
     """
     powers = np.arange(1, degree_max + 1)
