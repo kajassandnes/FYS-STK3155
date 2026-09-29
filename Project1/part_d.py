@@ -57,5 +57,5 @@ if __name__ == "__main__":
     rs = 2026
     x, y = runge_data(n = 100)
 
-    plot_kfold_powers(x, y, k, max_degree, model, rs)
-    #plot_kfold_lmbdas_powers(x, y, k, pow_range, lmbda_range, rs)
+    #plot_kfold_powers(x, y, k, max_degree, model, rs)
+    plot_kfold_lmbdas_powers(x, y, k, pow_range, lmbda_range, rs)

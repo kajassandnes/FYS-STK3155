@@ -13,7 +13,7 @@ def ridge(X, target, lmbda = 0.1):
     return theta
 
 
-def plot_score_lmbdas(data, target, pow,  ts, rs, lmbda_min = -8, lmbda_max = 2, nlmbdas = 20):
+def plot_score_lmbdas(data, target, pow,  ts, rs, lmbda_min = -8, lmbda_max = 2, nlmbdas = 20, plot_rest = False):
     """
     Input data, target variable, power, training size, and lmbda values.
     Plots mse, r2, and coefficients.
@@ -35,13 +35,40 @@ def plot_score_lmbdas(data, target, pow,  ts, rs, lmbda_min = -8, lmbda_max = 2,
         R2s[p] = R2_score
         theta_norms[p] = np.linalg.norm(theta)
 
-    plt.plot(lmbdas, mses, "o-", label = "MSE score")
+    if plot_rest == False:
+        plt.plot(lmbdas, mses, ".-", label = f"Degree = {pow}")
+
+    if plot_rest == True:
+        plt.plot(lmbdas, R2s, "o-", label = f"Degree = {pow}")
+        plt.xlabel("$\\lambda $")
+        plt.ylabel("$R^2$")
+        plt.title("$R^2$-score for ridge model")
+        plt.xscale("log")
+        plt.legend()
+        plt.show() 
+        plt.plot(lmbdas, theta_norms, "o-", label = f"Degree = {pow}")
+        plt.xlabel("$\\lambda$")
+        plt.ylabel("$\\|\\theta \\|$")
+        plt.title("Ridge parameter shrinkage")
+        plt.yscale("log")
+        plt.xscale("log")
+        plt.legend()
+        plt.show()
+
+
+def plot_ridge_powers(data, target, pow_min, pow_max, ts, rs, lmbda_min = -8, lmbda_max = 2, nlmbdas = 20):
+
+    powers = np.arange(pow_min, pow_max + 1)
+    for pow in powers:
+        plot_score_lmbdas(data, target, pow, ts, rs, lmbda_min, lmbda_max, nlmbdas)
+    
     plt.xlabel("$\\lambda$")
     plt.ylabel("MSE")
+    plt.title("MSE for ridge models")
     plt.xscale("log")
-    #plt.yscale("log")
     plt.legend()
     plt.show()
+    """
     plt.plot(lmbdas, R2s, "o-", label = "$R^2$ score")
     plt.xlabel("$\\lambda $")
     plt.ylabel("$R^2$")
@@ -54,11 +81,14 @@ def plot_score_lmbdas(data, target, pow,  ts, rs, lmbda_min = -8, lmbda_max = 2,
     plt.xscale("log")
     plt.legend()
     plt.show()
+    """
 
 if __name__ == "__main__":
     rs = 2026
     x, y = runge_data()
 
-    pow = 25
+    pow_min = 20
+    pow_max = 25
     ts = 0.2
-    plot_score_lmbdas(x, y, pow, ts, rs)
+    #plot_ridge_powers(x, y, pow_min, pow_max, ts, rs)
+    plot_score_lmbdas(x, y, pow_max, ts, rs, plot_rest = True)
