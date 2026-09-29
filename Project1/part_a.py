@@ -82,7 +82,14 @@ def plot_score_powers(data, target, ts, degree_max, method, rs):
     print(f"Higest R^2: {R2s[np.argmax(R2s)]} (degree {np.argmax(R2s)+1})")
     
 
+def test_ols():
+    y = np.random.randint(0, 10, 2)
+    X = np.column_stack((np.array([1, 0]), np.array([0, -1])))
+    theta = OLS(X, y)
+    y_tilde = X @ theta
+    assert np.array_equal(y, y_tilde)
 
 if __name__ == "__main__":
+    test_ols()
     x, y = runge_data()
     plot_score_powers(x, y, ts = 0.2, degree_max = 15, method = OLS, rs = 2026)
