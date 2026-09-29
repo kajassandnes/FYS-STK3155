@@ -69,7 +69,16 @@ def plot_ridge_powers(data, target, pow_min, pow_max, ts, rs, lmbda_min = -8, lm
     plt.legend()
     plt.show()
 
+def test_ridge(tol = 1e-9):
+    x, y = runge_data()
+    X = design_matrix(x, 6)
+    theta_ols = OLS(X, y)
+    theta_ridge = ridge(X, y, lmbda = 0.0)
+
+    assert np.max(theta_ols - theta_ridge) < tol
+
 if __name__ == "__main__":
+    test_ridge()
     rs = 2026
     x, y = runge_data()
 
