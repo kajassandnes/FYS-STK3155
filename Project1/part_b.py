@@ -39,6 +39,13 @@ def plot_score_lmbdas(data, target, pow,  ts, rs, lmbda_min = -8, lmbda_max = 2,
         plt.plot(lmbdas, mses, ".-", label = f"Degree = {pow}")
 
     if plot_rest == True:
+        plt.plot(lmbdas, mses, ".-", label = f"Degree = {pow}")
+        plt.xlabel("$\\lambda$")
+        plt.ylabel("MSE")
+        plt.title("MSE for ridge model")
+        plt.xscale("log")
+        plt.legend()
+        plt.show()
         plt.plot(lmbdas, R2s, "o-", label = f"Degree = {pow}")
         plt.xlabel("$\\lambda $")
         plt.ylabel("$R^2$")
@@ -61,7 +68,11 @@ def plot_ridge_powers(data, target, pow_min, pow_max, ts, rs, lmbda_min = -8, lm
     powers = np.arange(pow_min, pow_max + 1)
     for pow in powers:
         plot_score_lmbdas(data, target, pow, ts, rs, lmbda_min, lmbda_max, nlmbdas)
-    
+
+    ols_min = 0.0067931
+    ols_vals = np.ones(nlmbdas) * ols_min
+    lmbdas = np.logspace(lmbda_min, lmbda_max, nlmbdas)
+    plt.plot(lmbdas, ols_vals, "--", label = "Minimum MSE for OLS")
     plt.xlabel("$\\lambda$")
     plt.ylabel("MSE")
     plt.title("MSE for ridge models")
@@ -82,7 +93,7 @@ if __name__ == "__main__":
     rs = 2026
     x, y = runge_data()
 
-    pow_min = 20
+    pow_min = 12
     pow_max = 25
     ts = 0.2
     plot_ridge_powers(x, y, pow_min, pow_max, ts, rs)
