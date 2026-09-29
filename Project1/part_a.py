@@ -83,7 +83,7 @@ def plot_score_powers(data, target, ts, degree_max, method, rs):
     
 
 def test_ols():
-    y = np.random.randint(0, 10, 2)
+    y = np.random.randint(0, 2, 2)
     X = np.column_stack((np.array([1, 0]), np.array([0, -1])))
     theta = OLS(X, y)
     y_tilde = X @ theta
