@@ -74,7 +74,7 @@ def gradient_descent(X, y, theta, grad_meth, lmda, eta=0.1, theta_exact=None, to
     return theta, k+1, difference
 
 
-def theta_numeric(data, target, degree, gradient_method, lmda, eta, rs, ts):
+def theta_numeric(data, target, degree, gradient_method, descent_method, lmda, eta, rs, ts):
     """Input: observed data, target, maximum polynomial degree, 
     method of which to calculate gradient, penalty scalar, learning rate, 
     random seed and test size
@@ -98,7 +98,7 @@ def theta_numeric(data, target, degree, gradient_method, lmda, eta, rs, ts):
 
     rng = np.random.default_rng(rs)
     theta0 = rng.normal(size=(degree))
-    theta, iterations, difference = gradient_descent(X_train_scaled, y_train_centered, theta0, gradient_method, lmda, eta, 
+    theta, iterations, difference = descent_method(X_train_scaled, y_train_centered, theta0, gradient_method, lmda, eta, 
                                                   theta_exact)
 
     # compares to analytical calculated theta
@@ -108,13 +108,13 @@ def theta_numeric(data, target, degree, gradient_method, lmda, eta, rs, ts):
 
     return difference, iterations
 
-def plot_eta_lambda(x, y, degree, gradient_method, etas, lmdas, rs, ts):
+def plot_eta_lambda(x, y, degree, gradient_method, gradient_descent, etas, lmdas, rs, ts):
     """Written with help of AI"""
     fig, ax = plt.subplots()
     for lmda in lmdas:
         iterations = []
         for eta in etas:
-            difference, iteration = theta_numeric(x, y, degree, gradient_method, lmda, eta, rs, ts)
+            difference, iteration = theta_numeric(x, y, degree, gradient_method, descent_method, lmda, eta, rs, ts)
             iterations.append(iteration)
         ax.plot(etas, iterations, 'o-', label=rf'$\lambda={lmda}$')
 
@@ -134,11 +134,12 @@ if __name__ == "__main__":
     x, y = runge_data(rs=rs)
     degree = 5
     gradient_method = gradient_automatic_diff  
+    descent_method = gradient_descent
     ts = 0.2
 
     etas = np.linspace(0.02, 0.35, 8)
     lmdas = [0.0, 0.01, 0.1, 1.0]
 
-    plot_eta_lambda(x, y, degree, gradient_method, etas, lmdas, rs, ts)
+    plot_eta_lambda(x, y, degree, gradient_method, descent_method, etas, lmdas, rs, ts)
 
     
