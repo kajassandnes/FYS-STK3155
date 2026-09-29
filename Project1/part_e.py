@@ -23,7 +23,7 @@ def check_gradients(X, y, lmda, rs, tol=1e-15):
     diff = np.max(np.abs(g_analytical - g_automatic))
     assert diff < tol, f"gradient mismatch at lmda={lmda}: max|diff| = {diff} (it may be that the tolerance is too strict)"
 
-    print(f"Analytical and autodiff gradients agree to within {tol:.0e}\n")
+    print(f"\nAnalytical and autodiff gradients agree to within {tol:.0e}")
 
 
 def eta_max(X, lmda):
@@ -56,7 +56,7 @@ def cost(theta, X, y, lmda):
 _grad_cost = jax.jit(jax.grad(cost))
 
 
-def gradient_descent(X, y, theta, grad_meth, lmda, eta=0.1, theta_exact=None, tol=1.0e-8):
+def gradient_descent(X, y, theta, grad_meth, lmda, eta, theta_exact, tol=1.0e-8, *args, **kwargs):
     """Returns theta calculated by gradient descent, 
     and the number of itterations. 
 
@@ -74,7 +74,7 @@ def gradient_descent(X, y, theta, grad_meth, lmda, eta=0.1, theta_exact=None, to
     return theta, k+1, difference
 
 
-def theta_numeric(data, target, degree, gradient_method, descent_method, lmda, eta, rs, ts):
+def theta_numeric(data, target, degree, gradient_method, descent_method, lmda, eta, rs, ts, extras):
     """Input: observed data, target, maximum polynomial degree, 
     method of which to calculate gradient, penalty scalar, learning rate, 
     random seed and test size
@@ -92,29 +92,30 @@ def theta_numeric(data, target, degree, gradient_method, descent_method, lmda, e
         print(f"WARNING: eta={eta} exceeds the theoretical bound eta_max={eta_bound:.4g}; "
               f"gradient descent may diverge.")
 
-    # calculate exact and numerical theta
+    # calculate exact theta
     n = len(y_train_centered)
     theta_exact = np.linalg.pinv(X_train_scaled.T @ X_train_scaled + n*lmda*np.eye(X_train_scaled.shape[1])) @ X_train_scaled.T @ y_train_centered
 
+    # calculate numerical theta
     rng = np.random.default_rng(rs)
     theta0 = rng.normal(size=(degree))
     theta, iterations, difference = descent_method(X_train_scaled, y_train_centered, theta0, gradient_method, lmda, eta, 
-                                                  theta_exact)
+                                                  theta_exact, extras=extras)
 
-    # compares to analytical calculated theta
+    # compares analytical and numerical theta
     print(f"analytical theta:                               {theta_exact.ravel()}")
     print(f"gradient descent after {iterations} iterations:       {theta.ravel()}")
     print(f"Difference between exact and numerical theta:   {theta_exact - theta}")
 
-    return difference, iterations
+    return iterations
 
-def plot_eta_lambda(x, y, degree, gradient_method, gradient_descent, etas, lmdas, rs, ts):
+def plot_eta_lambda(x, y, degree, gradient_method, descent_method, etas, lmdas, rs, ts, extras=None):
     """Written with help of AI"""
     fig, ax = plt.subplots()
     for lmda in lmdas:
         iterations = []
         for eta in etas:
-            difference, iteration = theta_numeric(x, y, degree, gradient_method, descent_method, lmda, eta, rs, ts)
+            iteration = theta_numeric(x, y, degree, gradient_method, descent_method, lmda, eta, rs, ts, extras)
             iterations.append(iteration)
         ax.plot(etas, iterations, 'o-', label=rf'$\lambda={lmda}$')
 
