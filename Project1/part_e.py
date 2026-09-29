@@ -5,7 +5,7 @@ import jax.numpy as jnp
 from jax import grad, jit
 jax.config.update("jax_enable_x64", True)   # 64-bit floats, as in numpy
 
-def check_gradients(X, y, lmda, rs, tol=1e-15):
+def check_gradients(X, y, lmda, rs, eta, tol=1e-15):
     """
     Compares the analytical gradient against the autodiff gradient.
 
@@ -24,6 +24,11 @@ def check_gradients(X, y, lmda, rs, tol=1e-15):
     assert diff < tol, f"gradient mismatch at lmda={lmda}: max|diff| = {diff} (it may be that the tolerance is too strict)"
 
     print(f"\nAnalytical and autodiff gradients agree to within {tol:.0e}")
+
+    eta_bound = eta_max(X, lmda)
+    if eta >= eta_bound:
+        print(f"WARNING: eta={eta} exceeds the theoretical bound eta_max={eta_bound:.4g}; "
+              f"gradient descent may diverge.")
 
 
 def eta_max(X, lmda):
@@ -56,7 +61,7 @@ def cost(theta, X, y, lmda):
 _grad_cost = jax.jit(jax.grad(cost))
 
 
-def gradient_descent(X, y, theta, grad_meth, lmda, eta, theta_exact, tol=1.0e-8, *args, **kwargs):
+def gradient_descent(X, y, theta, grad_meth, lmda, eta, theta_exact, tol=1.0e-8):
     """Returns theta calculated by gradient descent, 
     and the number of itterations. 
 
@@ -74,7 +79,7 @@ def gradient_descent(X, y, theta, grad_meth, lmda, eta, theta_exact, tol=1.0e-8,
     return theta, k+1, difference
 
 
-def theta_numeric(data, target, degree, gradient_method, descent_method, lmda, eta, rs, ts, extras):
+def theta_numeric(data, target, degree, gradient_method, lmda, eta, rs, ts):
     """Input: observed data, target, maximum polynomial degree, 
     method of which to calculate gradient, penalty scalar, learning rate, 
     random seed and test size
@@ -86,11 +91,7 @@ def theta_numeric(data, target, degree, gradient_method, descent_method, lmda, e
     X_train_scaled, X_test_scaled, y_train_centered, y_test_centered = split_scale(X, target, ts, rs)
 
     # check of gradients and learning rate
-    check_gradients(X_train_scaled, y_train_centered, lmda, rs)
-    eta_bound = eta_max(X_train_scaled, lmda)
-    if eta >= eta_bound:
-        print(f"WARNING: eta={eta} exceeds the theoretical bound eta_max={eta_bound:.4g}; "
-              f"gradient descent may diverge.")
+    check_gradients(X_train_scaled, y_train_centered, lmda, rs, eta)
 
     # calculate exact theta
     n = len(y_train_centered)
@@ -99,8 +100,8 @@ def theta_numeric(data, target, degree, gradient_method, descent_method, lmda, e
     # calculate numerical theta
     rng = np.random.default_rng(rs)
     theta0 = rng.normal(size=(degree))
-    theta, iterations, difference = descent_method(X_train_scaled, y_train_centered, theta0, gradient_method, lmda, eta, 
-                                                  theta_exact, extras=extras)
+    theta, iterations, difference = gradient_descent(X_train_scaled, y_train_centered, theta0, gradient_method, lmda, eta, 
+                                                  theta_exact)
 
     # compares analytical and numerical theta
     print(f"analytical theta:                               {theta_exact.ravel()}")
@@ -109,13 +110,13 @@ def theta_numeric(data, target, degree, gradient_method, descent_method, lmda, e
 
     return iterations
 
-def plot_eta_lambda(x, y, degree, gradient_method, descent_method, etas, lmdas, rs, ts, extras=None):
+def plot_eta_lambda(x, y, degree, gradient_method, etas, lmdas, rs, ts):
     """Written with help of AI"""
     fig, ax = plt.subplots()
     for lmda in lmdas:
         iterations = []
         for eta in etas:
-            iteration = theta_numeric(x, y, degree, gradient_method, descent_method, lmda, eta, rs, ts, extras)
+            iteration = theta_numeric(x, y, degree, gradient_method, lmda, eta, rs, ts)
             iterations.append(iteration)
         ax.plot(etas, iterations, 'o-', label=rf'$\lambda={lmda}$')
 
@@ -135,12 +136,9 @@ if __name__ == "__main__":
     x, y = runge_data(rs=rs)
     degree = 5
     gradient_method = gradient_automatic_diff  
-    descent_method = gradient_descent
     ts = 0.2
 
     etas = np.linspace(0.02, 0.35, 8)
     lmdas = [0.0, 0.01, 0.1, 1.0]
 
-    plot_eta_lambda(x, y, degree, gradient_method, descent_method, etas, lmdas, rs, ts)
-
-    
+    plot_eta_lambda(x, y, degree, gradient_method, etas, lmdas, rs, ts)
