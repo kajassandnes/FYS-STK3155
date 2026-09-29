@@ -46,7 +46,7 @@ def gradient_descent_general(X, y, theta, grad_meth, descent_method, lmda, eta, 
     The descent methods available is: momentum, AdaGrad
     """
     state = {}
-    for k in range(100000):
+    for k in range(10000):
         gradient = grad_meth(theta, X, y, lmda)
         theta, state = descent_method(theta, state, eta, gradient)
 
@@ -58,7 +58,12 @@ def gradient_descent_general(X, y, theta, grad_meth, descent_method, lmda, eta, 
     return theta, k+1, difference
 
 
-def theta_numeric(data, target, degree, gradient_method, descent_method, lmda, eta, rs, ts):
+def ols_ridge_exact(X, y, lmda):
+    n = len(y)
+    return np.linalg.pinv(X.T @ X + n*lmda*np.eye(X.shape[1])) @ X.T @ y
+
+
+def theta_numeric(data, target, degree, gradient_method, descent_method, exact_method, lmda, eta, rs, ts):
     """Input: observed data, target, maximum polynomial degree, 
     method of which to calculate gradient, penalty scalar, learning rate, 
     random seed and test size
@@ -73,8 +78,7 @@ def theta_numeric(data, target, degree, gradient_method, descent_method, lmda, e
     check_gradients(X_train_scaled, y_train_centered, lmda, rs, eta)
 
     # calculate exact theta
-    n = len(y_train_centered)
-    theta_exact = np.linalg.pinv(X_train_scaled.T @ X_train_scaled + n*lmda*np.eye(X_train_scaled.shape[1])) @ X_train_scaled.T @ y_train_centered
+    theta_exact = exact_method(X_train_scaled, y_train_centered, lmda)
 
     # calculate numerical theta
     rng = np.random.default_rng(rs)
@@ -82,18 +86,19 @@ def theta_numeric(data, target, degree, gradient_method, descent_method, lmda, e
     theta, iterations, difference = gradient_descent_general(X_train_scaled, y_train_centered, theta0, gradient_method, descent_method, lmda, eta, theta_exact)
 
     # compares analytical and numerical theta
+    print(f"analytical theta:                               {theta_exact.ravel()}")
     print(f"Difference between exact and numerical theta:   {theta_exact - theta}")
 
-    return iterations
+    return iterations, difference
 
 
-def plot_eta_lambda(x, y, degree, gradient_method, descent_method, etas, lmdas, rs, ts):
+def plot_eta_lambda(x, y, degree, gradient_method, descent_method, exact_method, etas, lmdas, rs, ts):
     """Written with help of AI"""
     fig, ax = plt.subplots()
     for lmda in lmdas:
         iterations = []
         for eta in etas:
-            iteration = theta_numeric(x, y, degree, gradient_method, descent_method, lmda, eta, rs, ts)
+            iteration, difference = theta_numeric(x, y, degree, gradient_method, descent_method, exact_method, lmda, eta, rs, ts)
             iterations.append(iteration)
         ax.plot(etas, iterations, 'o-', label=rf'$\lambda={lmda}$')
 
@@ -110,10 +115,11 @@ if __name__ == "__main__":
     x, y = runge_data(rs=rs)
     degree = 5
     gradient_method = gradient_automatic_diff  
-    descent_method = RMSprop
+    descent_method = Adam
+    exact_method = ols_ridge_exact
     ts = 0.2
 
     etas = np.linspace(0.02, 0.35, 8)
     lmdas = [0.0, 0.01, 0.1, 1.0]
 
-    plot_eta_lambda(x, y, degree, gradient_method, descent_method, etas, lmdas, rs, ts)
+    plot_eta_lambda(x, y, degree, gradient_method, descent_method, exact_method, etas, lmdas, rs, ts)
