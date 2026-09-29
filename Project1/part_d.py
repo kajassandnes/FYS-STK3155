@@ -50,12 +50,12 @@ if __name__ == "__main__":
     model = LinearRegression(fit_intercept = True)
     nlmbdas = 20
     lmbda_range = np.logspace(-8, 2, nlmbdas)
-    pow_range = np.arange(15, 21)
+    pow_range = np.arange(12, 21)
     p = 20
     k = 5
     max_degree = 25
     rs = 2026
     x, y = runge_data(n = 100)
 
-    #plot_kfold_powers(x, y, k, max_degree, model, rs)
+    plot_kfold_powers(x, y, k, max_degree, model, rs)
     plot_kfold_lmbdas_powers(x, y, k, pow_range, lmbda_range, rs)

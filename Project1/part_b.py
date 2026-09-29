@@ -68,20 +68,6 @@ def plot_ridge_powers(data, target, pow_min, pow_max, ts, rs, lmbda_min = -8, lm
     plt.xscale("log")
     plt.legend()
     plt.show()
-    """
-    plt.plot(lmbdas, R2s, "o-", label = "$R^2$ score")
-    plt.xlabel("$\\lambda $")
-    plt.ylabel("$R^2$")
-    plt.xscale("log")
-    plt.legend()
-    plt.show() 
-    plt.plot(lmbdas, theta_norms, "o-", label = "$\\|\\theta \\|$")
-    plt.xlabel("$\\lambda$")
-    plt.yscale("log")
-    plt.xscale("log")
-    plt.legend()
-    plt.show()
-    """
 
 if __name__ == "__main__":
     rs = 2026
