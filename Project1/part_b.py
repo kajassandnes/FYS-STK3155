@@ -85,5 +85,5 @@ if __name__ == "__main__":
     pow_min = 20
     pow_max = 25
     ts = 0.2
-    #plot_ridge_powers(x, y, pow_min, pow_max, ts, rs)
+    plot_ridge_powers(x, y, pow_min, pow_max, ts, rs)
     plot_score_lmbdas(x, y, pow_max, ts, rs, plot_rest = True)
