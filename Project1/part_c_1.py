@@ -6,6 +6,7 @@ def plot_test_train_mse(data, target, ts = 0.2, degree_max = 15, method = OLS, r
     Input data, target variable, training size, and maximum degree of polynomial.
     Plots mse, r2, and coefficients.
     """
+    floor = np.zeros(degree_max) + 0.01
     powers = np.arange(1, degree_max + 1)
     mses_train = np.zeros_like(powers, dtype = float)
     mses_test = np.zeros_like(powers, dtype = float)
@@ -22,15 +23,16 @@ def plot_test_train_mse(data, target, ts = 0.2, degree_max = 15, method = OLS, r
         mses_test[p - 1] = mse_score_test
 
 
+    plt.plot(powers, floor, "--", label = "$\\sigma^2$")
     plt.plot(powers, mses_train, "o-", label = "Training MSE")
     plt.plot(powers, mses_test, "o-", label = "Test MSE")
     plt.xlabel("Powers")
     plt.ylabel("MSE")
-    plt.title("MSE of training and test data as function of complexity")
+    plt.title("MSE of training and test data as function of model complexity")
     plt.legend()
     plt.show()
 
 if __name__ == "__main__":
 
-    x, y = runge_data()
-    plot_test_train_mse(x, y, degree_max = 19)
+    x, y = runge_data(n = 200)
+    plot_test_train_mse(x, y, degree_max = 50)

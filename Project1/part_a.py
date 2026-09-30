@@ -62,7 +62,6 @@ def plot_score_powers(data, target, ts, degree_max, method, rs):
         R2s[p - 1] = R2_score
         theta_norms[p - 1] = np.linalg.norm(theta)
 
-
     plt.plot(powers, mses, "o-", label = "MSE score")
     plt.xlabel("Powers")
     plt.ylabel("MSE")
@@ -77,6 +76,7 @@ def plot_score_powers(data, target, ts, degree_max, method, rs):
     plt.show()
     plt.plot(powers, theta_norms, "o-", label = "$\\|\\theta \\|$")
     plt.xlabel("Powers")
+    plt.yscale("log")
     plt.title("Size of coefficient vector for OLS model complexities")
     plt.legend()
     plt.show()
