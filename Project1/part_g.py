@@ -19,7 +19,23 @@ def gradient_lasso_analytical(theta, X, y, lmda):
 
 def gradient_lasso_automatic_diff(theta, X, y, lmda):
     """Return gradient calculated by automatic differentiation"""
-    return np.asarray(_grad_cost_lasso(theta, X, y, lmda))   
+    return np.asarray(_grad_cost_lasso(theta, X, y, lmda)) 
+
+
+def gradient_lasso_smooth(theta, X, y, lmda):
+    n = X.shape[0]
+    return 2/n * X.T @ (X @ theta - y)
+
+def soft_threshold(x, alpha):
+    return np.sign(x) * np.maximum(np.abs(x) - alpha, 0)
+
+def proximal_gradient_descent(theta, state, eta, grad, lmda):
+    x = theta - eta*grad
+    alpha = eta*lmda
+    theta = soft_threshold(x, alpha)
+
+    return theta, state
+    
 
 
 def theta_lasso_sklearn(X, y, lmda):
@@ -88,13 +104,19 @@ if __name__ == "__main__":
     rs = 2026
     x, y = runge_data(rs=rs)
     degree = 5
-    gradient_method = gradient_lasso_automatic_diff 
-    descent_method = Adam
+    gradient_method = gradient_lasso_smooth
+    descent_method = proximal_gradient_descent
     exact_method = theta_lasso_sklearn
     ts = 0.2
+    tol = 1e-2
 
     etas = np.linspace(0.02, 0.35, 8)
-    lmdas = [0.0, 0.01, 0.1, 1.0]
+    lmdas = [0.01, 0.05, 0.09, 0.1, 0.2, 0.3, 0.4, 0.5]
 
-    plot_lasso_difference(x, y, degree, gradient_method, descent_method, exact_method, etas, lmdas, rs, ts)
+    plot_eta_lambda(x, y, degree, gradient_method, descent_method, exact_method, etas, lmdas, rs, ts, tol)
+    #plot_lasso_difference(x, y, degree, gradient_method, descent_method, exact_method, etas, lmdas, rs, ts)
     gradient_at_zero()
+
+
+    print("jax.grad(jnp.abs)(0.0) =", jax.grad(jnp.abs)(0.0))
+    print("jax.grad(jnp.abs)(-0.3) =", jax.grad(jnp.abs)(-0.3), " jax.grad(jnp.abs)(0.3) =", jax.grad(jnp.abs)(0.3))
