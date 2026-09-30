@@ -67,16 +67,18 @@ def gradient_descent(X, y, theta, grad_meth, lmda, eta, theta_exact, tol=1.0e-8)
 
     The methods available is: OLS, Ridge, automatic differentiation
     """
+    history = {'theta_diff': []}
     for k in range(100000):
+        old_theta = theta
         gradient = grad_meth(theta, X, y, lmda)
         theta = theta - eta * gradient
 
-        if np.linalg.norm(gradient) < tol:
+        history["theta_diff"].append(float(np.linalg.norm(theta - theta_exact)))
+
+        if np.linalg.norm(theta - old_theta) < tol:
             break
 
-    difference = float(np.linalg.norm(theta - theta_exact))
-
-    return theta, k+1, difference
+    return theta, k+1, history
 
 
 def theta_numeric(data, target, degree, gradient_method, lmda, eta, rs, ts):
@@ -100,7 +102,7 @@ def theta_numeric(data, target, degree, gradient_method, lmda, eta, rs, ts):
     # calculate numerical theta
     rng = np.random.default_rng(rs)
     theta0 = rng.normal(size=(degree))
-    theta, iterations, difference = gradient_descent(X_train_scaled, y_train_centered, theta0, gradient_method, lmda, eta, 
+    theta, iterations, history = gradient_descent(X_train_scaled, y_train_centered, theta0, gradient_method, lmda, eta, 
                                                   theta_exact)
 
     # compares analytical and numerical theta
@@ -108,23 +110,46 @@ def theta_numeric(data, target, degree, gradient_method, lmda, eta, rs, ts):
     print(f"gradient descent after {iterations} iterations:       {theta.ravel()}")
     print(f"Difference between exact and numerical theta:   {theta_exact - theta}")
 
-    return iterations
+    return iterations, history
 
-def plot_eta_lambda(x, y, degree, gradient_method, etas, lmdas, rs, ts):
+def plot_eta_lambda(x, y, degree, gradient_method, etas, lmdas, rs, ts, target_accuracy=1e-4):
     """Written with help of AI"""
-    fig, ax = plt.subplots()
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12,5))
+    
     for lmda in lmdas:
         iterations = []
-        for eta in etas:
-            iteration = theta_numeric(x, y, degree, gradient_method, lmda, eta, rs, ts)
-            iterations.append(iteration)
-        ax.plot(etas, iterations, 'o-', label=rf'$\lambda={lmda}$')
+        iters_to_target = []
 
-    ax.set_xlabel(r'$\eta$')
-    ax.set_ylabel(r'iterations to converge to $10^{-8}$')
-    ax.set_yscale('log')
-    ax.set_title('Effect of learning rate and lambda on convergence speed')
-    ax.legend()
+        for eta in etas:
+            iteration, history = theta_numeric(x, y, degree, gradient_method, lmda, eta, rs, ts)
+            iterations.append(iteration)
+        
+        # find first iteration where theta got within target_accuracy of theta_exact
+            diffs = np.array(history["theta_diff"])
+            below = np.where(diffs < target_accuracy)[0]
+            iters_to_target.append(below[0]+1 if len(below) > 0 else np.nan)
+
+        # plotting iterations to converge
+        ax1.plot(etas, iterations, 'o-', label=rf'$\lambda={lmda}$')
+
+        # plotting iterations to converge to closed solution
+        ax2.plot(etas, iters_to_target, 'o-', label=rf'$\lambda={lmda}$')
+
+    # iterations to converge
+    ax1.set_xlabel(r'$\eta$')
+    ax1.set_ylabel(r'iterations to converge (tol = $10^{-8}$)')
+    ax1.set_yscale('log')
+    ax1.set_title('Effect of learning rate and lambda on convergence speed')
+    ax1.legend()
+
+    # iterations to converge to closed solution
+    ax2.set_xlabel(r'$\eta$')
+    ax2.set_ylabel(rf'iterations to reach $\|\theta_{{exact}} - \theta\| < {target_accuracy:.0e}$')
+    ax2.set_yscale('log')
+    ax2.set_title('Iterations to reach closed-form solution')
+    ax2.legend()
+
+    plt.tight_layout()
     plt.show()
 
 
