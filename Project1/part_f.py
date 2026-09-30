@@ -2,7 +2,7 @@
 from part_e import *
 
 
-def momentum(theta, state, eta, grad, mom_par=0.9):
+def momentum(theta, state, eta, grad, mom_par=0.9, *args, **kwargs):
     change = eta*grad + mom_par*state.get('v', np.zeros_like(theta))
     theta = theta - change
     state = {'v': change}
@@ -10,7 +10,7 @@ def momentum(theta, state, eta, grad, mom_par=0.9):
     return theta, state
 
 
-def AdaGrad(theta, state, eta, grad, eps=1e-8):
+def AdaGrad(theta, state, eta, grad, eps=1e-8, *args, **kwargs):
     r = state.get('r', np.zeros_like(theta)) + grad**2
     theta = theta - eta * grad / (np.sqrt(r) + eps) 
     state = {'r': r}
@@ -18,7 +18,7 @@ def AdaGrad(theta, state, eta, grad, eps=1e-8):
     return theta, state
 
 
-def RMSprop(theta, state, eta, grad, rho=0.9, eps=1e-8):
+def RMSprop(theta, state, eta, grad, rho=0.99, eps=1e-4, *args, **kwargs):
     v = rho * state.get('v', np.zeros_like(theta)) + (1 - rho) * grad**2
     theta = theta - eta * grad / (np.sqrt(v) + eps)
     state = {'v': v}
@@ -26,7 +26,7 @@ def RMSprop(theta, state, eta, grad, rho=0.9, eps=1e-8):
     return theta, state
 
 
-def Adam(theta, state, eta, grad, beta1=0.9, beta2=0.999, eps=1e-8):
+def Adam(theta, state, eta, grad, beta1=0.9, beta2=0.999, eps=1e-8, *args, **kwargs):
     t = state.get('t', 0) + 1
     m = (beta1 * state.get('m', np.zeros_like(theta)) + (1-beta1) * grad) 
     v = (beta2 * state.get('v', np.zeros_like(theta)) + (1-beta2) * grad**2) 
@@ -38,7 +38,7 @@ def Adam(theta, state, eta, grad, beta1=0.9, beta2=0.999, eps=1e-8):
     return theta, state
 
 
-def gradient_descent_general(X, y, theta, grad_meth, descent_method, lmda, eta, theta_exact, tol=1.0e-8):
+def gradient_descent_general(X, y, theta, grad_meth, descent_method, lmda, eta, theta_exact, tol):
     """Returns theta calculated by gradient descent, 
     and the number of itterations. 
 
@@ -46,16 +46,19 @@ def gradient_descent_general(X, y, theta, grad_meth, descent_method, lmda, eta, 
     The descent methods available is: momentum, AdaGrad
     """
     state = {}
-    for k in range(10000):
+    history = {'theta_diff': []}
+    for k in range(100000):
+        old_theta = theta
         gradient = grad_meth(theta, X, y, lmda)
-        theta, state = descent_method(theta, state, eta, gradient)
+        theta, state = descent_method(theta, state, eta, gradient, lmda=lmda)
 
-        if np.linalg.norm(gradient) < tol:
+        history["theta_diff"].append(float(np.linalg.norm(theta - theta_exact)))
+
+        # cheks if theta has converged
+        if np.linalg.norm(theta - old_theta) < tol:
             break
 
-    difference = float(np.linalg.norm(theta - theta_exact))
-
-    return theta, k+1, difference
+    return theta, k+1, history
 
 
 def ols_ridge_exact(X, y, lmda):
@@ -63,7 +66,7 @@ def ols_ridge_exact(X, y, lmda):
     return np.linalg.pinv(X.T @ X + n*lmda*np.eye(X.shape[1])) @ X.T @ y
 
 
-def theta_numeric(data, target, degree, gradient_method, descent_method, exact_method, lmda, eta, rs, ts):
+def theta_numeric(data, target, degree, gradient_method, descent_method, exact_method, lmda, eta, rs, ts, tol=1e-8):
     """Input: observed data, target, maximum polynomial degree, 
     method of which to calculate gradient, penalty scalar, learning rate, 
     random seed and test size
@@ -83,31 +86,56 @@ def theta_numeric(data, target, degree, gradient_method, descent_method, exact_m
     # calculate numerical theta
     rng = np.random.default_rng(rs)
     theta0 = rng.normal(size=(degree))
-    theta, iterations, difference = gradient_descent_general(X_train_scaled, y_train_centered, theta0, gradient_method, descent_method, lmda, eta, theta_exact)
+    theta, iterations, history = gradient_descent_general(X_train_scaled, y_train_centered, theta0, gradient_method, descent_method, lmda, eta, theta_exact, tol)
 
     # compares analytical and numerical theta
+    print(f"eta: {eta}  lmda: {lmda}")
     print(f"analytical theta:                               {theta_exact.ravel()}")
     print(f"Difference between exact and numerical theta:   {theta_exact - theta}")
+    print(f"Difference: {np.linalg.norm(theta_exact) - np.linalg.norm(theta)}")
 
-    return iterations, difference
+    return iterations, history
 
 
-def plot_eta_lambda(x, y, degree, gradient_method, descent_method, exact_method, etas, lmdas, rs, ts):
+def plot_eta_lambda(x, y, degree, gradient_method, descent_method, exact_method, etas, lmdas, rs, ts, tol=1e-8, target_accuracy=1e-3):
     """Written with help of AI"""
-    fig, ax = plt.subplots()
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12,5))
+
     for lmda in lmdas:
         iterations = []
+        iters_to_target = []
         for eta in etas:
-            iteration, difference = theta_numeric(x, y, degree, gradient_method, descent_method, exact_method, lmda, eta, rs, ts)
+            iteration, history = theta_numeric(x, y, degree, gradient_method, descent_method, exact_method, lmda, eta, rs, ts, tol)
             iterations.append(iteration)
-        ax.plot(etas, iterations, 'o-', label=rf'$\lambda={lmda}$')
 
-    ax.set_xlabel(r'$\eta$')
-    ax.set_ylabel(r'iterations to converge to $10^{-8}$')
-    ax.set_yscale('log')
-    ax.set_title('Effect of learning rate and lambda on convergence speed')
-    ax.legend()
+            # find first iteration where theta got within target_accuracy of theta_exact
+            diffs = np.array(history["theta_diff"])
+            below = np.where(diffs < target_accuracy)[0]
+            iters_to_target.append(below[0]+1 if len(below) > 0 else np.nan)
+
+        # plotting iterations to converge
+        ax1.plot(etas, iterations, 'o-', label=rf'$\lambda={lmda}$')
+
+        # plotting iterations to converge to closed solution
+        ax2.plot(etas, iters_to_target, 'o-', label=rf'$\lambda={lmda}$')
+
+    # iterations to converge
+    ax1.set_xlabel(r'$\eta$')
+    ax1.set_ylabel(r'iterations to converge (tol = $10^{-8}$)')
+    ax1.set_yscale('log')
+    ax1.set_title('Effect of learning rate and lambda on convergence speed')
+    ax1.legend()
+
+    # iterations to converge to closed solution
+    ax2.set_xlabel(r'$\eta$')
+    ax2.set_ylabel(rf'iterations to reach $\|\theta_{{exact}} - \theta\| < {target_accuracy:.0e}$')
+    ax2.set_yscale('log')
+    ax2.set_title('Iterations to reach closed-form solution')
+    ax2.legend()
+
+    plt.tight_layout()
     plt.show()
+
 
 
 if __name__ == "__main__":
