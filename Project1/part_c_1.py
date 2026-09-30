@@ -1,6 +1,6 @@
 from part_a import *
 
-def plot_test_train_mse(data, target, ts = 0.2, degree_max = 15, method = OLS, rs = 3155):
+def plot_test_train_mse(data, target, ts = 0.2, degree_max = 15, method = OLS, rs = 2026):
 
     """
     Input data, target variable, training size, and maximum degree of polynomial.
@@ -28,11 +28,11 @@ def plot_test_train_mse(data, target, ts = 0.2, degree_max = 15, method = OLS, r
     plt.plot(powers, mses_test, "o-", label = "Test MSE")
     plt.xlabel("Powers")
     plt.ylabel("MSE")
-    plt.title("MSE of training and test data as function of model complexity")
+    plt.title(f"MSE of training and test data, $n = 150$")
     plt.legend()
     plt.show()
 
 if __name__ == "__main__":
 
-    x, y = runge_data(n = 200)
-    plot_test_train_mse(x, y, degree_max = 50)
+    x, y = runge_data(n = 150)
+    plot_test_train_mse(x, y, degree_max = 28)

@@ -41,8 +41,13 @@ def plot_bias_var(x, y, k, degree_max, n):
              mses[p - 1] = m
              biases[p - 1] = b
              variances[p - 1] = v
-            
+
+        tol = 1e-9
+        assert np.max(mses - biases - variances) < tol
+        floor = np.zeros_like(powers) + 0.01
+        plt.plot(powers, floor, "--", color = "gray", label = "$\\sigma^2$")
         plt.plot(powers, mses, "o-", label = "$MSE$")
+        #plt.plot(powers, biases + variances, ".-", alpha = 0.5, label = "$\\text{Bias}^2+\\text{Var}$")
         plt.plot(powers, biases, "o-", label = "$Bias^2 + \\sigma^2$")
         plt.plot(powers, variances, "o-", label = "$Var$")
         plt.title(f"Mean statistics over {k} bootstraps, for {n} datapoints")
