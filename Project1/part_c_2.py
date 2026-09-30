@@ -1,7 +1,7 @@
 from sklearn.utils import resample
 from part_a import *
 
-def bootstrap_ols(x, y, k, degree, ts = 0.2, rs = 2026):
+def bootstrap_ols(x, y, k, degree, ts = 0.2, rs = 3155):
     scaler = StandardScaler()
 
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = ts, random_state = rs)
@@ -44,13 +44,15 @@ def plot_bias_var(x, y, k, degree_max, n):
 
         tol = 1e-9
         assert np.max(mses - biases - variances) < tol
+
+        print(f"Minimizing degree: {np.argmin(mses)}, minimized error: {np.min(mses)}")
         floor = np.zeros_like(powers) + 0.01
         plt.plot(powers, floor, "--", color = "gray", label = "$\\sigma^2$")
         plt.plot(powers, mses, "o-", label = "$MSE$")
         #plt.plot(powers, biases + variances, ".-", alpha = 0.5, label = "$\\text{Bias}^2+\\text{Var}$")
         plt.plot(powers, biases, "o-", label = "$Bias^2 + \\sigma^2$")
         plt.plot(powers, variances, "o-", label = "$Var$")
-        plt.title(f"Mean statistics over {k} bootstraps, for {n} datapoints")
+        plt.title(f"Mean statistics over {k} bootstraps, for {n} datapoints, runge function")
         plt.xlabel("Powers")
         plt.yscale("log")
         plt.legend()
