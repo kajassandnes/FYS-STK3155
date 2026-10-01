@@ -19,6 +19,7 @@ def plot_kfold_powers(x, y, k, degree_max, model, rs):
     for p in powers:
         mses[p - 1] = kfold(x, y, k, p, model, rs)
 
+    print(f"Minimizing degree: {np.argmin(mses) + 1}, minimized error: {np.min(mses)}")
     plt.plot(powers, mses, "o-", label = "$MSE$")
     plt.xlabel("Powers")
     plt.title(f"{k}-fold cross validation: OLS on runge data")
@@ -32,11 +33,21 @@ def plot_kfold_lmbdas(x, y, k, p, lmbda_range, rs):
         mses[i] = kfold(x, y, k, p, Ridge(fit_intercept = True, alpha = lmbda_range[i]), rs)
 
     plt.plot(lmbda_range, mses, "o-", label = f"$Degree = {p}$")
+    return mses
 
 def plot_kfold_lmbdas_powers(x, y, k, p_range, lmbda_range, rs):
+    minmses = np.zeros_like(p_range, dtype = float)
+    minlmbdas = np.zeros_like(p_range, dtype = float)
 
-    for p in p_range:
-        plot_kfold_lmbdas(x, y, k, p, lmbda_range, rs)
+    for p in range(len(p_range)):
+
+        mses = plot_kfold_lmbdas(x, y, k, p_range[p], lmbda_range, rs)
+        mindex = np.argmin(mses)
+        minmses[p] = mses[mindex]
+        minlmbdas[p] = lmbda_range[mindex]
+
+    mindex = np.argmin(minmses)
+    print(f"Minimizing degree: {p_range[mindex]}, minimizing lambda: {minlmbdas[mindex]}, minimized error: {minmses[mindex]}")
 
     plt.xlabel("$\\lambda$")
     plt.title(f"MSE {k}-fold cross validation: Ridge on runge data.")
@@ -50,12 +61,13 @@ if __name__ == "__main__":
     model = LinearRegression(fit_intercept = True)
     nlmbdas = 20
     lmbda_range = np.logspace(-8, 2, nlmbdas)
-    pow_range = np.arange(12, 21)
     p = 20
     k = 5
+    min_degree = 1
     max_degree = 25
+    pow_range = np.arange(min_degree, max_degree + 1)
     rs = 2026
-    x, y = runge_data(n = 100)
+    x, y = runge_data(n = 100, std = 1)
 
-    plot_kfold_powers(x, y, k, max_degree, model, rs)
+    #plot_kfold_powers(x, y, k, max_degree, model, rs)
     plot_kfold_lmbdas_powers(x, y, k, pow_range, lmbda_range, rs)

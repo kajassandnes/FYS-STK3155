@@ -45,7 +45,7 @@ def plot_bias_var(x, y, k, degree_max, n):
         tol = 1e-9
         assert np.max(mses - biases - variances) < tol
 
-        print(f"Minimizing degree: {np.argmin(mses)}, minimized error: {np.min(mses)}")
+        print(f"Minimizing degree: {np.argmin(mses) + 1}, minimized error: {np.min(mses)}")
         floor = np.zeros_like(powers) + 0.01
         plt.plot(powers, floor, "--", color = "gray", label = "$\\sigma^2$")
         plt.plot(powers, mses, "o-", label = "$MSE$")
