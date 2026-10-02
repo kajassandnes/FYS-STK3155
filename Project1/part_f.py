@@ -22,7 +22,7 @@ def AdaGrad(theta, state, eta, grad, eps=1e-8, *args, **kwargs):
     return theta, state
 
 
-def RMSprop(theta, state, eta, grad, rho=0.99, eps=1e-4, *args, **kwargs):
+def RMSprop(theta, state, eta, grad, rho=0.999, eps=1e-8, *args, **kwargs):
     """Gradient descent using RMSprop method
     """
     v = rho * state.get('v', np.zeros_like(theta)) + (1 - rho) * grad**2
@@ -112,7 +112,7 @@ def theta_numeric(data, target, degree, gradient_method, descent_method, exact_m
     return iterations, history
 
 
-def plot_eta_lambda(x, y, degree, gradient_method, descent_method, exact_method, lmdas, etas, rs, ts, tol=1e-8, target_accuracy=1e-3):
+def plot_eta_lambda(x, y, degree, gradient_method, descent_method, exact_method, lmdas, etas, rs, ts, tol=1e-8, target_accuracy=1e-4):
     """This is a generalized function of "plot_eta_lambda" in part_e.
     
     Inputs: dataset, target, maximum polynomial degree, method to compute gradient, 
@@ -172,7 +172,8 @@ if __name__ == "__main__":
     exact_method = ols_ridge_exact
     ts = 0.2
 
-    etas = np.linspace(0.02, 0.35, 8)
+    etas = np.linspace(0.001, 3.0, 20)
     lmdas = [0, 0.01, 0.1, 1.0]
 
     plot_eta_lambda(x, y, degree, gradient_method, descent_method, exact_method, lmdas, etas, rs, ts)
+    # kan plotte de ulike metodene for en fast lmda mot hverandre
