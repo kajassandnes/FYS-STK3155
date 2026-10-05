@@ -79,7 +79,8 @@ def gradient_descent_general(X, y, theta, gradient_method, descent_method, lmda,
     return theta, k+1, history
 
 
-def theta_numeric(data, target, degree, gradient_method, descent_method, exact_method, lmda, eta, rs, ts, tol=1e-8):
+def theta_numeric(data, target, degree, gradient_method, descent_method, exact_method, lmda, eta, rs, ts, 
+                  tol=1e-8, check=True,):
     """This is a generalized function of "theta_numeric" in part_e.
 
     Input: observed data, target, maximum polynomial degree, method to calculate gradient, 
@@ -87,13 +88,12 @@ def theta_numeric(data, target, degree, gradient_method, descent_method, exact_m
     random seed and test size. Default tolerence describes the convergence criteria for theta.
     
     Splits data into training and test data, calculates theta by gradient descent.
-    Prints difference between numerical and exact theta.
     """
     X = design_matrix(data, degree)
     X_train_scaled, X_test_scaled, y_train_centered, y_test_centered = split_scale(X, target, ts, rs)
 
-    # check of gradient
-    check_gradients(X_train_scaled, y_train_centered, lmda, rs, eta)
+    if check:
+        check_gradients(X_train_scaled, y_train_centered, lmda, rs, eta)
 
     # calculate exact theta
     theta_exact = exact_method(X_train_scaled, y_train_centered, lmda)
@@ -101,79 +101,83 @@ def theta_numeric(data, target, degree, gradient_method, descent_method, exact_m
     # calculate numerical theta
     rng = np.random.default_rng(rs)
     theta0 = rng.normal(size=(degree))
-    theta, iterations, history = gradient_descent_general(X_train_scaled, y_train_centered, theta0, gradient_method, descent_method, lmda, eta, theta_exact, tol)
 
-    # compares analytical and numerical theta
-    print(f"eta: {eta}  lmda: {lmda}")
-    print(f"analytical theta:                               {theta_exact.ravel()}")
-    print(f"Difference between exact and numerical theta:   {theta_exact - theta}")
-    print(f"Difference: {np.linalg.norm(theta_exact) - np.linalg.norm(theta)}")
-
+    theta, iterations, history = gradient_descent_general(
+        X_train_scaled, y_train_centered, theta0, gradient_method, 
+        descent_method, lmda, eta, theta_exact, tol
+        )
     return iterations, history
 
 
-def plot_eta_lambda(x, y, degree, gradient_method, descent_method, exact_method, lmdas, etas, rs, ts, tol=1e-8, target_accuracy=1e-4):
-    """This is a generalized function of "plot_eta_lambda" in part_e.
-    
-    Inputs: dataset, target, maximum polynomial degree, method to compute gradient, 
-    gradient descent method, method for exact theta, penalty parameters, learning rates
-    random seed, test size. Default tolerance determines the criteria of convergence of 
-    theta during learning. Default target accuracy describes the criteria of convergense 
-    to closed form solution.
+def plot_lambda_methods(x, y, degree, gradient_method, descent_methods, exact_method, lmdas, eta, rs, ts,
+                        tol=1e-8, target_accuracy=1e-4, check=True, plot=True):
+    """Plot iterations vs penalty parameter for several gradient descent methods.
 
-    The function plots iterations to convergence and closed form solution vs learning rate
-    for different values of the penalty parameter.
+    Top panel: iterations until the parameter update is smaller than tol.
+    Bottom panel: iterations until theta is within target_accuracy of the closed-form solution.
+    The learning rate eta is the initial/fixed step size used by the descent method.
+
+    LLM-assisted
+    ------------
+    Tool: Cursor (October 2026)
+    Role: The LLM wrote the entire function inspired by a previous draft written by myself.
     """
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12,5))
+    fig, axs = plt.subplots(2, 1, figsize=(4, 6), sharex=True)
+    ax1, ax2 = axs
 
-    for lmda in lmdas:
+    for descent_method, label, color in descent_methods:
         iterations = []
         iters_to_target = []
-        for eta in etas:
-            iteration, history = theta_numeric(x, y, degree, gradient_method, descent_method, exact_method, lmda, eta, rs, ts, tol)
+        for lmda in lmdas:
+            iteration, history = theta_numeric(
+                x, y, degree, gradient_method, descent_method, exact_method, lmda, eta, rs, ts, tol,
+                check=check
+            )
             iterations.append(iteration)
 
-            # find first iteration where theta got within target_accuracy of theta_exact
             diffs = np.array(history["theta_diff"])
             below = np.where(diffs < target_accuracy)[0]
-            iters_to_target.append(below[0]+1 if len(below) > 0 else np.nan)
+            iters_to_target.append(below[0] + 1 if len(below) > 0 else np.nan)
 
-        # plotting iterations to converge
-        ax1.plot(etas, iterations, 'o-', label=rf'$\lambda={lmda}$')
+        ax1.plot(lmdas, iterations, "o-", color=color, label=label)
+        ax2.plot(lmdas, iters_to_target, "o-", color=color, label=label)
 
-        # plotting iterations to converge to closed solution
-        ax2.plot(etas, iters_to_target, 'o-', label=rf'$\lambda={lmda}$')
-
-    # iterations to converge
-    ax1.set_xlabel(r'$\eta$')
-    ax1.set_ylabel(r'iterations to converge (tol = $10^{-8}$)')
-    ax1.set_yscale('log')
-    ax1.set_title('Effect of learning rate and lambda on convergence speed')
+    ax1.set_ylabel(r'Iterations')
+    ax1.set_yscale("log")
+    ax1.set_title(rf"Convergence Speed ($\eta_0={eta}$)")
     ax1.legend()
 
-    # iterations to converge to closed solution
-    ax2.set_xlabel(r'$\eta$')
-    ax2.set_ylabel(rf'iterations to reach $\|\theta_{{exact}} - \theta\| < {target_accuracy:.0e}$')
-    ax2.set_yscale('log')
-    ax2.set_title('Iterations to reach closed-form solution')
-    ax2.legend()
+    ax2.set_xlabel(r"$\lambda$")
+    ax2.set_ylabel(rf'Iterations')
+    ax2.set_yscale("log")
+    ax2.set_title(rf"Convergense to Closed-Form Solution ($\eta_0={eta}$)")
+    ax2.legend(loc='lower left')
 
     plt.tight_layout()
-    plt.show()
 
+    if plot:
+        plt.show()
+    else:
+        return fig, axs
 
 
 if __name__ == "__main__":
     rs = 2026
     x, y = runge_data(rs=rs)
     degree = 5
-    gradient_method = gradient_automatic_diff  
-    descent_method = RMSprop
+    gradient_method = gradient_automatic_diff
+    descent_method = momentum
     exact_method = ols_ridge_exact
     ts = 0.2
 
-    etas = np.linspace(0.001, 3.0, 20)
-    lmdas = [0, 0.01, 0.1, 1.0]
-
-    plot_eta_lambda(x, y, degree, gradient_method, descent_method, exact_method, lmdas, etas, rs, ts)
-    # kan plotte de ulike metodene for en fast lmda mot hverandre
+    descent_methods = [
+        (momentum, "Momentum", 'blue'),
+        (AdaGrad, "AdaGrad", 'orange'),
+        (RMSprop, "RMSprop", 'green'),
+        (Adam, "Adam", 'red'),
+    ]
+    
+    lmdas = np.arange(0.1, 1, 0.1)
+    plot_lambda_methods(
+        x, y, degree, gradient_method, descent_methods, exact_method, lmdas, eta=2, rs=rs, ts=ts
+    )
