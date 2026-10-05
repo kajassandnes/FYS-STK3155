@@ -5,8 +5,16 @@ import jax.numpy as jnp
 from jax import grad, jit
 jax.config.update("jax_enable_x64", True)   # 64-bit floats, as in numpy
 
+# parameters for plotting
+plt.rcParams['axes.titlesize'] = 24   # Axis title
+plt.rcParams['axes.labelsize'] = 20    # X and Y axis labels (names)
+plt.rcParams['xtick.labelsize'] = 18   # X axis values (ticks)
+plt.rcParams['ytick.labelsize'] = 18   # Y axis values (ticks)
+plt.rcParams['legend.fontsize'] = 16   # Legend text
+plt.rcParams['figure.titlesize'] = 26  # Overall figure title (suptitle)
+
 def check_gradients(X, y, lmda, rs, eta, tol=1e-15, plain_gradient_descent=False):
-    """Compares the analytical gradient against the autodiff gradient for OLS and Ridge.
+    """Compares analytical gradient against the autodiff gradient for OLS and Ridge.
     """
     rng = np.random.default_rng(rs)
     theta = rng.normal(size=X.shape[1])
@@ -122,7 +130,7 @@ def plot_eta_lambda(x, y, degree, gradient_method, etas, lmdas, rs, ts, target_a
     
     Partially written with help of AI, which helped with the set up  of loops and finding
     the iteration when theta converged to closed form solution."""
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(5, 12))
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(4, 6))
     
     for lmda in lmdas:
         iterations = []
@@ -144,17 +152,16 @@ def plot_eta_lambda(x, y, degree, gradient_method, etas, lmdas, rs, ts, target_a
         ax2.plot(etas, iters_to_target, 'o-', label=rf'$\lambda={lmda}$')
 
     # iterations to converge
-    ax1.set_xlabel(r'$\eta$')
-    ax1.set_ylabel(r'iterations to converge (tol = $10^{-8}$)')
+    ax1.set_ylabel(r'iterations')
     ax1.set_yscale('log')
-    ax1.set_title(r'Effect of Learning Rate and Penalty Parameter on Convergence Speed')
+    ax1.set_title(r'Convergence Speed')
     ax1.legend()
 
     # iterations to converge to closed solution
     ax2.set_xlabel(r'$\eta$')
-    ax2.set_ylabel(rf'iterations to reach $\|\theta - \theta_{{exact}}\| < {target_accuracy:.0e}$')
+    ax2.set_ylabel(rf'iterations')
     ax2.set_yscale('log')
-    ax2.set_title('Iterations to Closed-Form Solution')
+    ax2.set_title('Convergence to Closed-Form Solution')
     ax2.legend()
 
     plt.tight_layout()
