@@ -96,7 +96,7 @@ class NeuralNetwork:
 
         return a
 
-    def jax_compliant_predict(self, layers, inputs):
+    def predict_layers(self, layers, inputs):
         """
         Complete feed forward pass and predict based on inputs with layers as input
         """
@@ -114,11 +114,11 @@ class NeuralNetwork:
         a = self.predict(inputs)
         return self.cost_func(a, targets)
 
-    def jax_compliant_cost(self, inputs, layers, targets):
+    def cost_layers(self, inputs, layers, targets):
         """
         Compute cost via obect's cost function on desired inputs and targets with layers as input
         """
-        a = self.jax_compliant_predict(layers, inputs)
+        a = self.predict_layers(layers, inputs)
         return self.cost_func(a, targets)
 
     def _feed_forward_saver(self, inputs):
@@ -171,7 +171,7 @@ class NeuralNetwork:
         """
         Compute gradient with automatic differentiation via jax
         """
-        grad = jax.grad(self.jax_compliant_cost,  argnums = 1)
+        grad = jax.grad(self.cost_layers,  argnums = 1)
         return grad(inputs, layers, targets)
     
     def update_weights(self, layer_grads, gamma):
@@ -190,13 +190,18 @@ class NeuralNetwork:
         return [idx[i:i + batch_size] for i in range(0, n, batch_size)]
 
     def train_sgd(
-        self, inputs, targets, optimizer, rs, n_epochs = 50, batch_size = 5
+        self, inputs, targets, optimizer, rs, n_epochs = 50, batch_size = 5, autodiff = False
         ):
         """
         Trains network using stochastic gradient descent.
         Pass an initialized optimizer as the optimizer argument.
         Gradually updates self.layers, returns None
         """
+        if autodiff == True:
+            grad_method = self.jax_gradient
+        else:
+            grad_method = self.compute_gradient
+    
         layers_optax = self.layers
         opt_state = optimizer.init(layers_optax)
 
@@ -205,27 +210,39 @@ class NeuralNetwork:
 
         for _ in range(n_epochs):
             for batch in self._make_batches(n_datapoints, batch_size, rng):
-                layers_grad = self.compute_gradient(inputs[batch], targets[batch])
+                layers_grad = grad_method(inputs[batch], targets[batch])
                 updates, opt_state = optimizer.update(layers_grad, opt_state, layers_optax)
                 layers_optax = optax.apply_updates(layers_optax, updates)
 
                 self.layers = layers_optax
 
     def train_pgd(
-            self, inputs, targets, optimizer, n_epochs = 100
+            self, inputs, targets, optimizer, n_epochs = 100, autodiff = False
     ):
         """
         Trains network plain gradient descent.
         Pass an initialized optax optimizer as the optimizer argument
         Gradually updatater self.layers, returns None
         """
+        if autodiff == True:
+            grad_method = self.jax_gradient
+        else:
+            grad_method = self.compute_gradient
+        
         layers_optax = self.layers
         opt_state = optimizer.init(layers_optax)
 
         for _ in range(n_epochs):
-            layers_grad = self.compute_gradient(inputs, targets)
+            layers_grad = grad_method(inputs, targets)
             updates, opt_state = optimizer.update(layers_grad, opt_state, layers_optax)
             layers_optax = optax.apply_updates(layers_optax, updates)
 
             self.layers = layers_optax
-        
+
+    def save_layers(self):
+        """
+        Method used to save layers for later validation so layers can be altered
+        """
+        return self.layers
+
+    
