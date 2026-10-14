@@ -105,6 +105,8 @@ class NeuralNetwork:
             z = a @ W + b
             a = activation_func(z)
 
+        return a
+
     def cost(self, inputs, targets):
         """
         Compute cost via the object's cost function on desired inputs and targets
@@ -116,7 +118,7 @@ class NeuralNetwork:
         """
         Compute cost via obect's cost function on desired inputs and targets with layers as input
         """
-        a = self.jax_compliant_predict(self, layers, inputs)
+        a = self.jax_compliant_predict(layers, inputs)
         return self.cost_func(a, targets)
 
     def _feed_forward_saver(self, inputs):
@@ -169,8 +171,8 @@ class NeuralNetwork:
         """
         Compute gradient with automatic differentiation via jax
         """
-        grad = jax.grad(self.jax_compliant_cost,  argumns = (1, 2))
-        return grad(self, inputs, layers, targets)
+        grad = jax.grad(self.jax_compliant_cost,  argnums = 1)
+        return grad(inputs, layers, targets)
     
     def update_weights(self, layer_grads, gamma):
         """
