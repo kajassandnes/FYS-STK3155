@@ -53,7 +53,3 @@ print(network_1.cost(X_test_scaled, y_test_centered))
 optimizer = optax.adam(learning_rate = 0.01)
 network_1.train_pgd(X_train_scaled, y_train_centered, optimizer, n_epochs = 1000)
 print(network_1.cost(X_test_scaled, y_test_centered))
-
-plt.plot(x, network_1.predict(X))
-plt.plot(x, y, ".")
-plt.show()
