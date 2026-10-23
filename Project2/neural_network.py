@@ -65,7 +65,7 @@ class NeuralNetwork:
     def __str__(self):
         return(f"Neural network with {len(self.layer_output_sizes)} hidden layers.")
 
-    def initialize_layers(self, vars, rs):
+    def initialize_layers(self, vars, rs = 2026):
         """
         Make new layers with wieghts and biases from normal distribution with corresponding variances
         Note that length of vars must match number of layers. vars is indexed [(var_w1, var_b1), (var_w2, var_b2),...]
@@ -190,7 +190,7 @@ class NeuralNetwork:
         return [idx[i:i + batch_size] for i in range(0, n, batch_size)]
 
     def train_sgd(
-        self, inputs, targets, optimizer, rs, n_epochs = 50, batch_size = 5, autodiff = False
+        self, inputs, targets, optimizer, rs = 2026, n_epochs = 50, batch_size = 5, autodiff = False
         ):
         """
         Trains network using stochastic gradient descent.
