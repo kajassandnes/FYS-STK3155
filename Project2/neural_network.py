@@ -8,6 +8,8 @@ from sklearn.metrics import (confusion_matrix, ConfusionMatrixDisplay,
                              accuracy_score, precision_score, recall_score, f1_score,
                              classification_report,
                              roc_curve as sk_roc_curve, roc_auc_score, RocCurveDisplay)
+from sklearn.base import BaseEstimator
+
 # useful functions
 def ReLU(z):
     return jnp.where(z > 0, z, 0.0)
@@ -79,7 +81,7 @@ class NeuralNetwork:
         self.layer_output_sizes = layer_output_sizes
         self.activation_funcs = activation_funcs
         self.activation_ders = activation_ders
-        self.cost_func = cost_fun
+        self.cost_fun = cost_fun
         self.cost_der = cost_der
 
         vars = np.ones((len(layer_output_sizes), 2))
@@ -135,14 +137,14 @@ class NeuralNetwork:
         Compute cost via the object's cost function on desired inputs and targets
         """
         a = self.predict(inputs)
-        return self.cost_func(a, targets)
+        return self.cost_fun(a, targets)
 
     def cost_layers(self, inputs, layers, targets):
         """
         Compute cost via obect's cost function on desired inputs and targets with layers as input
         """
         a = self.predict_layers(layers, inputs)
-        return self.cost_func(a, targets)
+        return self.cost_fun(a, targets)
 
     def _feed_forward_saver(self, inputs):
         """
@@ -317,4 +319,63 @@ class NeuralNetwork:
         """
         return self.layers
 
-    
+
+
+
+class Estimator(NeuralNetwork, BaseEstimator):
+
+    def __init__(
+        self,
+        layer_output_sizes = (50, 1),
+        activation_funcs = (ReLU, sigmoid),
+        activation_ders = (ReLU_der, lambda _: 1),
+        cost_fun = binary_cross_entropy,
+        cost_der = smce_der,
+        random_seed = 2026,
+        gamma = 0.03,
+        epochs = 1000,
+        batch_size = 10,
+        lmbda = 0.0
+    ):    
+        self.layer_output_sizes = layer_output_sizes
+        self.activation_funcs = activation_funcs
+        self.activation_ders = activation_ders
+        self.cost_fun = cost_fun
+        self.cost_der = cost_der
+        self.random_seed = random_seed
+        self.gamma = gamma
+        self.epochs = epochs
+        self.batch_size = batch_size
+        self.lmbda = lmbda
+
+
+    def initialize_layers_(self):
+        """
+        Make new layers with wieghts and biases from normal distribution with corresponding variances
+        Note that length of vars must match number of layers. vars is indexed [(var_w1, var_b1), (var_w2, var_b2),...]
+        """
+
+        vars = np.zeros_like(self.layer_output_sizes)
+        vars[0] = self.input_size
+        vars[1:] = self.layer_output_sizes[:-1]
+        rng = np.random.default_rng(self.random_seed)
+        layers = []
+
+        i_size = self.input_size
+        for layer_output_size, sigma_w in zip(self.layer_output_sizes, vars):
+            W = rng.normal(loc = 0.0, scale = sigma_w, size =(i_size, layer_output_size))
+            b = np.zeros(layer_output_size)
+            layers.append((W, b))
+
+            i_size = layer_output_size
+
+        self.layers = layers
+
+    def fit(self, X, y):
+
+        self.input_size = X.shape[1]
+        self.initialize_layers_()
+        optimizer = optax.adam(learning_rate = self.gamma)
+        self.train_sgd(X, y, optimizer, self.random_seed, self.epochs, self.batch_size)
+        self.layers_ = self.layers
+        return self
