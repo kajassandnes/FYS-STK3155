@@ -326,10 +326,10 @@ class Estimator(NeuralNetwork, BaseEstimator):
 
     def __init__(
         self,
-        layer_output_sizes = (50, 1),
-        activation_funcs = (ReLU, sigmoid),
+        layer_output_sizes = (50, 10),
+        activation_funcs = (ReLU, softmax),
         activation_ders = (ReLU_der, lambda _: 1),
-        cost_fun = binary_cross_entropy,
+        cost_fun = cross_entropy,
         cost_der = smce_der,
         random_seed = 2026,
         gamma = 0.03,
