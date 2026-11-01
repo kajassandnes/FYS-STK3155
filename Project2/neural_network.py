@@ -21,6 +21,12 @@ def sigmoid(z):
 def sigmoid_der(z):
     return sigmoid(z) * (1 - sigmoid(z))
 
+def identity(z):
+    return z
+
+def identity_der(z):
+    return 1
+
 def mse(predict, target):
     return jnp.mean((predict - target) ** 2)
 
