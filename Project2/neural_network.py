@@ -348,7 +348,7 @@ class NeuralNetwork:
 
 
 
-class Estimator_classifier(NeuralNetwork, BaseEstimator):
+class EstimatorClassifier(NeuralNetwork, BaseEstimator):
 
     def __init__(
         self,
@@ -381,7 +381,7 @@ class Estimator_classifier(NeuralNetwork, BaseEstimator):
         Note that length of vars must match number of layers. vars is indexed [(var_w1, var_b1), (var_w2, var_b2),...]
         """
 
-        self.layer_output_sizes = (self.hidden, 10)
+        self.layer_output_sizes = (self.hidden, len(self.classes_))
         vars = np.zeros_like(self.layer_output_sizes)
         vars[0] = self.input_size
         vars[1:] = self.layer_output_sizes[:-1]
@@ -400,7 +400,7 @@ class Estimator_classifier(NeuralNetwork, BaseEstimator):
 
     def fit(self, X, y):
 
-        self.classes = np.unique(X)
+        self.classes_ = np.unique(y)
         Y = one_hot(np.searchsorted(self.classes_, y), len(self.classes_))
         self.input_size = X.shape[1]
         self.initialize_layers_()
@@ -418,7 +418,7 @@ class Estimator_classifier(NeuralNetwork, BaseEstimator):
         return self.cost_fun(a, Y)
 
     def predict_proba(self, X):
-        return super.predict(X)
+        return super().predict(X)
     
     def predict(self, X):
-        return self.classes[np.argmax(self.predict_proba(X), axis = 1)]
+        return self.classes_[np.argmax(self.predict_proba(X), axis = 1)]
