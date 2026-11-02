@@ -385,6 +385,7 @@ class EstimatorClassifier(NeuralNetwork, BaseEstimator):
         vars = np.zeros_like(self.layer_output_sizes)
         vars[0] = self.input_size
         vars[1:] = self.layer_output_sizes[:-1]
+        vars = np.sqrt(2 / vars)
         rng = np.random.default_rng(self.random_seed)
         layers = []
 
