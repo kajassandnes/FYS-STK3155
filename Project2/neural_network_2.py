@@ -9,7 +9,7 @@ class Network():
 
     Private methods:
     __init__() 
-    _initialize_weights_and_biases()
+    _normal_initialize_weights_and_biases()
     _backpropagation()
     _feedforward()
 
@@ -22,13 +22,14 @@ class Network():
     Use of LLM:
 
     """
-    def __init__(self, layers:list, activation_func:callable, activation_der: callable,
-                 cost_func:callable, cost_der:callable, output_func:callable, output_der:callable, seed=2026):
+    def __init__(self, layers:list, activation_func:callable, activation_der: callable, 
+                 cost_func:callable, cost_der:callable, output_func:callable, 
+                 output_der:callable, init="", seed=2026):
         """
         All callables are the users choice of costfunction and activation function, and 
-        their respective derivatives. The output function generalizes the network. It is
-        just the identity if the network does regression, and examplewise a sigmoid function
-        if the network does classification.
+        their respective derivatives. Having the output function as an argument 
+        generalizes the network to be able to do regression and classification. 
+        init lets you decide how to initialize the weights. Default is Xavier (Glorot).
         layers is a list with structure [input layer, hidden layers, output layer].
         """
         self.layers = layers
@@ -39,15 +40,25 @@ class Network():
         self.output_func = output_func
         self.output_der = output_der
         self.rng = np.random.default_rng(seed)
-        self._initialize_weights_and_biases()
+        self.init = init
+        self._normal_initialize_weights_and_biases()
 
-    def _initialize_weights_and_biases(self) -> None:
-        """Initialises all weights and biases from a normal distribution
+    def _normal_initialize_weights_and_biases(self) -> None:
+        """Initialises all weights and biases from a normal distribution with mean=0 and
+        He initialisation: std=sqrt(2/M_{l-1}) if init = "He".
+        Xavier (Glorot) initialization: std=sqrt(2/(M_{l-1} + M_l)) else.
         Weights W[l] in layer l have shape (n_in, n_out), biases B[l] have shape (n_out,)
         """
         pairs = list(zip(self.layers[:-1], self.layers[1:]))
-        self.W = [self.rng.normal(loc=0, scale=1, size=(n_in, n_out)) for n_in, n_out in pairs]
-        self.B = [self.rng.normal(loc=0, scale=1, size=n_out) for _, n_out in pairs]
+        if self.init.lower() == "he":
+            self.W = [self.rng.normal(loc=0, scale=np.sqrt(2/(n_in)), size=(n_in, n_out)) 
+                      for n_in, n_out in pairs]
+            self.B = [np.ones(n_out)*0.01 for _, n_out in pairs]
+
+        else:
+            self.W = [self.rng.normal(loc=0, scale=np.sqrt(2/(n_in + n_out)), size=(n_in, n_out)) 
+                      for n_in, n_out in pairs]
+            self.B = [np.zeros(n_out) for _, n_out in pairs]
     
     def _feedforward(self, X:list) -> list:
         """Feedforward is used to calculate activations and weighted inputs by
@@ -121,8 +132,4 @@ class Network():
                     self.W[l] -= eta * grad_W[l]
                     self.B[l] -= eta * grad_B[l]
         pass
-
-    
-
-
 
