@@ -402,6 +402,14 @@ class Estimator_classifier(NeuralNetwork, BaseEstimator):
         self.layers_ = self.layers
         return self
 
+    def cost(self, inputs, targets):
+        """
+        Compute cost via the object's cost function on desired inputs and targets
+        """
+        a = self.predict(inputs)
+        Y = one_hot(np.searchsorted(self.classes_, targets), len(self.classes_))
+        return self.cost_fun(a, Y)
+
     def predict_proba(self, X):
         return super.predict(X)
     
