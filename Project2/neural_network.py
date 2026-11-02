@@ -46,6 +46,19 @@ def smce_der(predict, target):
     return predict - target 
 
 # classification plotting:
+
+def confusion_matrix_multiclass(y_true, y_pred, n_classes):
+    """C[i, j] = number of samples of true class i predicted as class j."""
+    Cm = np.zeros((n_classes, n_classes), dtype=int)
+    np.add.at(Cm, (np.asarray(y_true).astype(int), np.asarray(y_pred).astype(int)), 1)
+    return Cm
+
+
+def per_class_from_confusion(Cm):
+    """Precision and recall of every class from the K x K matrix."""
+    tp = np.diag(Cm).astype(float)
+    return tp / np.maximum(Cm.sum(axis=0), 1), tp / np.maximum(Cm.sum(axis=1), 1)
+
 def plot_classification(y, p, threshold = 0.5, label = "your classifier"):
       y_test, p_test = y, p          # replace by your test labels and output probabilities
       y_pred = p_test > threshold
@@ -322,7 +335,7 @@ class NeuralNetwork:
 
 
 
-class Estimator(NeuralNetwork, BaseEstimator):
+class Estimator_classifier(NeuralNetwork, BaseEstimator):
 
     def __init__(
         self,
@@ -373,9 +386,16 @@ class Estimator(NeuralNetwork, BaseEstimator):
 
     def fit(self, X, y):
 
+        self.classes = np.unique(X)
         self.input_size = X.shape[1]
         self.initialize_layers_()
         optimizer = optax.adam(learning_rate = self.gamma)
         self.train_sgd(X, y, optimizer, self.random_seed, self.epochs, self.batch_size)
         self.layers_ = self.layers
         return self
+
+    def predict_proba(self, X):
+        return super.predict(X)
+    
+    def predict(self, X):
+        return self.classes[np.argmax(self.predict_proba(X), axis = 1)]
