@@ -346,7 +346,7 @@ class Estimator_classifier(NeuralNetwork, BaseEstimator):
 
     def __init__(
         self,
-        layer_output_sizes = (64, 10),
+        hidden = 64,
         activation_funcs = (ReLU, softmax),
         activation_ders = (ReLU_der, lambda _: 1),
         cost_fun = cross_entropy,
@@ -357,7 +357,7 @@ class Estimator_classifier(NeuralNetwork, BaseEstimator):
         batch_size = 10,
         lmbda = 0.0
     ):    
-        self.layer_output_sizes = layer_output_sizes
+        self.hidden = hidden
         self.activation_funcs = activation_funcs
         self.activation_ders = activation_ders
         self.cost_fun = cost_fun
@@ -375,6 +375,7 @@ class Estimator_classifier(NeuralNetwork, BaseEstimator):
         Note that length of vars must match number of layers. vars is indexed [(var_w1, var_b1), (var_w2, var_b2),...]
         """
 
+        self.layer_output_sizes = (self.hidden, 10)
         vars = np.zeros_like(self.layer_output_sizes)
         vars[0] = self.input_size
         vars[1:] = self.layer_output_sizes[:-1]
