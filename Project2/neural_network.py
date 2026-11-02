@@ -45,6 +45,13 @@ def softmax(z):
 def smce_der(predict, target):
     return predict - target 
 
+def one_hot(y, n_classes=None):
+    """Integer labels -> one-hot rows."""
+    n_classes = int(np.max(y)) + 1 if n_classes is None else n_classes
+    Y = np.zeros((len(y), n_classes))
+    Y[np.arange(len(y)), y] = 1.0
+    return Y
+
 # classification plotting:
 
 def confusion_matrix_multiclass(y_true, y_pred, n_classes):
@@ -339,14 +346,14 @@ class Estimator_classifier(NeuralNetwork, BaseEstimator):
 
     def __init__(
         self,
-        layer_output_sizes = (50, 10),
+        layer_output_sizes = (64, 10),
         activation_funcs = (ReLU, softmax),
         activation_ders = (ReLU_der, lambda _: 1),
         cost_fun = cross_entropy,
         cost_der = smce_der,
         random_seed = 2026,
         gamma = 0.03,
-        epochs = 1000,
+        epochs = 10,
         batch_size = 10,
         lmbda = 0.0
     ):    
@@ -387,10 +394,11 @@ class Estimator_classifier(NeuralNetwork, BaseEstimator):
     def fit(self, X, y):
 
         self.classes = np.unique(X)
+        Y = one_hot(np.searchsorted(self.classes_, y), len(self.classes_))
         self.input_size = X.shape[1]
         self.initialize_layers_()
         optimizer = optax.adam(learning_rate = self.gamma)
-        self.train_sgd(X, y, optimizer, self.random_seed, self.epochs, self.batch_size)
+        self.train_sgd(X, Y, optimizer, self.random_seed, self.epochs, self.batch_size)
         self.layers_ = self.layers
         return self
 
