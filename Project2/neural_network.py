@@ -102,6 +102,7 @@ class NeuralNetwork:
         activation_ders,
         cost_fun,
         cost_der,
+        lmbda
     ):
         self.network_input_size = network_input_size    
         self.layer_output_sizes = layer_output_sizes
@@ -109,6 +110,7 @@ class NeuralNetwork:
         self.activation_ders = activation_ders
         self.cost_fun = cost_fun
         self.cost_der = cost_der
+        self.lmbda = lmbda
 
         vars = np.ones((len(layer_output_sizes), 2))
         self.initialize_layers(vars, rs = 2026)
@@ -201,6 +203,7 @@ class NeuralNetwork:
         # We loop over the layers, from the last to the first
         for i in reversed(range(len(self.layers))):
             layer_input, z, activation_der = layer_inputs[i], zs[i], self.activation_ders[i]
+            W_current = self.layers[i][0]
 
             if i == len(self.layers) - 1:
                 # For last layer we use cost derivative as dC_da(L) can be computed directly
@@ -211,7 +214,7 @@ class NeuralNetwork:
                 dC_da = dC_dz @ W.T
 
             dC_dz = dC_da * activation_der(z)
-            dC_dW = layer_input.T @ dC_dz
+            dC_dW = layer_input.T @ dC_dz + self.lmbda * W_current
             dC_db = np.sum(dC_dz, axis = 0)
 
             layer_grads[i] = (dC_dW, dC_db)
@@ -392,7 +395,7 @@ class EstimatorClassifier(NeuralNetwork, BaseEstimator):
         i_size = self.input_size
         for layer_output_size, sigma_w in zip(self.layer_output_sizes, vars):
             W = rng.normal(loc = 0.0, scale = sigma_w, size =(i_size, layer_output_size))
-            b = np.zeros(layer_output_size)
+            b = np.zeros(layer_output_size, dtype = float) + 0.01
             layers.append((W, b))
 
             i_size = layer_output_size
