@@ -45,7 +45,27 @@ def softmax(z):
 def smce_der(predict, target):
     return predict - target 
 
+def one_hot(y, n_classes=None):
+    """Integer labels -> one-hot rows."""
+    n_classes = int(np.max(y)) + 1 if n_classes is None else n_classes
+    Y = np.zeros((len(y), n_classes))
+    Y[np.arange(len(y)), y] = 1.0
+    return Y
+
 # classification plotting:
+
+def confusion_matrix_multiclass(y_true, y_pred, n_classes):
+    """C[i, j] = number of samples of true class i predicted as class j."""
+    Cm = np.zeros((n_classes, n_classes), dtype=int)
+    np.add.at(Cm, (np.asarray(y_true).astype(int), np.asarray(y_pred).astype(int)), 1)
+    return Cm
+
+
+def per_class_from_confusion(Cm):
+    """Precision and recall of every class from the K x K matrix."""
+    tp = np.diag(Cm).astype(float)
+    return tp / np.maximum(Cm.sum(axis=0), 1), tp / np.maximum(Cm.sum(axis=1), 1)
+
 def plot_classification(y, p, threshold = 0.5, label = "your classifier"):
       y_test, p_test = y, p          # replace by your test labels and output probabilities
       y_pred = p_test > threshold
@@ -76,6 +96,7 @@ class NeuralNetwork:
         activation_ders,
         cost_fun,
         cost_der,
+        lmbda
     ):
         self.network_input_size = network_input_size    
         self.layer_output_sizes = layer_output_sizes
@@ -83,6 +104,7 @@ class NeuralNetwork:
         self.activation_ders = activation_ders
         self.cost_fun = cost_fun
         self.cost_der = cost_der
+        self.lmbda = lmbda
 
         vars = np.ones((len(layer_output_sizes), 2))
         self.initialize_layers(vars, rs = 2026)
@@ -175,6 +197,7 @@ class NeuralNetwork:
         # We loop over the layers, from the last to the first
         for i in reversed(range(len(self.layers))):
             layer_input, z, activation_der = layer_inputs[i], zs[i], self.activation_ders[i]
+            W_current = self.layers[i][0]
 
             if i == len(self.layers) - 1:
                 # For last layer we use cost derivative as dC_da(L) can be computed directly
@@ -185,7 +208,7 @@ class NeuralNetwork:
                 dC_da = dC_dz @ W.T
 
             dC_dz = dC_da * activation_der(z)
-            dC_dW = layer_input.T @ dC_dz
+            dC_dW = layer_input.T @ dC_dz + self.lmbda * W_current
             dC_db = np.sum(dC_dz, axis = 0)
 
             layer_grads[i] = (dC_dW, dC_db)
@@ -322,22 +345,22 @@ class NeuralNetwork:
 
 
 
-class Estimator(NeuralNetwork, BaseEstimator):
+class EstimatorClassifier(NeuralNetwork, BaseEstimator):
 
     def __init__(
         self,
-        layer_output_sizes = (50, 10),
+        hidden = 64,
         activation_funcs = (ReLU, softmax),
         activation_ders = (ReLU_der, lambda _: 1),
         cost_fun = cross_entropy,
         cost_der = smce_der,
         random_seed = 2026,
         gamma = 0.03,
-        epochs = 1000,
+        epochs = 10,
         batch_size = 10,
         lmbda = 0.0
     ):    
-        self.layer_output_sizes = layer_output_sizes
+        self.hidden = hidden
         self.activation_funcs = activation_funcs
         self.activation_ders = activation_ders
         self.cost_fun = cost_fun
@@ -355,16 +378,18 @@ class Estimator(NeuralNetwork, BaseEstimator):
         Note that length of vars must match number of layers. vars is indexed [(var_w1, var_b1), (var_w2, var_b2),...]
         """
 
+        self.layer_output_sizes = (self.hidden, len(self.classes_))
         vars = np.zeros_like(self.layer_output_sizes)
         vars[0] = self.input_size
         vars[1:] = self.layer_output_sizes[:-1]
+        vars = np.sqrt(2 / vars)
         rng = np.random.default_rng(self.random_seed)
         layers = []
 
         i_size = self.input_size
         for layer_output_size, sigma_w in zip(self.layer_output_sizes, vars):
             W = rng.normal(loc = 0.0, scale = sigma_w, size =(i_size, layer_output_size))
-            b = np.zeros(layer_output_size)
+            b = np.zeros(layer_output_size, dtype = float) + 0.01
             layers.append((W, b))
 
             i_size = layer_output_size
@@ -373,9 +398,25 @@ class Estimator(NeuralNetwork, BaseEstimator):
 
     def fit(self, X, y):
 
+        self.classes_ = np.unique(y)
+        Y = one_hot(np.searchsorted(self.classes_, y), len(self.classes_))
         self.input_size = X.shape[1]
         self.initialize_layers_()
         optimizer = optax.adam(learning_rate = self.gamma)
-        self.train_sgd(X, y, optimizer, self.random_seed, self.epochs, self.batch_size)
+        self.train_sgd(X, Y, optimizer, self.random_seed, self.epochs, self.batch_size)
         self.layers_ = self.layers
         return self
+
+    def cost(self, inputs, targets):
+        """
+        Compute cost via the object's cost function on desired inputs and targets
+        """
+        a = self.predict(inputs)
+        Y = one_hot(np.searchsorted(self.classes_, targets), len(self.classes_))
+        return self.cost_fun(a, Y)
+
+    def predict_proba(self, X):
+        return super().predict(X)
+    
+    def predict(self, X):
+        return self.classes_[np.argmax(self.predict_proba(X), axis = 1)]
