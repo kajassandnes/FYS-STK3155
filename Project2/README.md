@@ -1,8 +1,12 @@
 # Project 2
 This project is a collaboration between Amund J. K. Rekkavik and Kaja S. Sandnes. 
-
 ## Short Description
+This project concerns itself with the use of neural networks in regression and classification analysis.
+In the neural_network.py-file, we have written code for our own flexible neural network that has been used throughout this project. The results in the project come from the ipynb-files corresponding to each task of the complete description of the project. The mathematics of part a can be found the the theory part of the report.
 
+Notes on the code can be found alongside it in the jupyter notebooks. Note that some of the code (especially the cross validation of the classification part) takes a long time to run. All figures are avalible in the /figures folder.
+
+The random seed: "2026" has been used throughout to make results reproducable.
 ## Requirements
 
 ## Code Description
