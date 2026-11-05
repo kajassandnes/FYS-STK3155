@@ -352,6 +352,12 @@ class NeuralNetwork:
 
 
 class EstimatorClassifier(NeuralNetwork, BaseEstimator):
+    """
+    EstimatorClassifier class, made specifically to make the code of part e)
+    easier to write, and more readable. Has inheretance from BaseEstimator
+    and our own NeuralNetwork. Has fixed size of one layer as that is what
+    we worked with for part e.
+    """
 
     def __init__(
         self,
@@ -380,8 +386,8 @@ class EstimatorClassifier(NeuralNetwork, BaseEstimator):
 
     def initialize_layers_(self):
         """
-        Make new layers with wieghts and biases from normal distribution with corresponding variances
-        Note that length of vars must match number of layers. vars is indexed [(var_w1, var_b1), (var_w2, var_b2),...]
+        Make new layers with wieghts and biases according to
+        He initialization.
         """
 
         self.layer_output_sizes = (self.hidden, len(self.classes_))
@@ -403,6 +409,9 @@ class EstimatorClassifier(NeuralNetwork, BaseEstimator):
         self.layers = layers
 
     def fit(self, X, y):
+        """
+        Sklearn compliant classifier fit method.
+        """
 
         self.classes_ = np.unique(y)
         Y = one_hot(np.searchsorted(self.classes_, y), len(self.classes_))
@@ -422,7 +431,13 @@ class EstimatorClassifier(NeuralNetwork, BaseEstimator):
         return self.cost_fun(a, Y)
 
     def predict_proba(self, X):
+        """
+        Returns matrix of probabilities for each class for each input.
+        """
         return super().predict(X)
     
     def predict(self, X):
+        """
+        Returns vector of predictions chosen as largest softmax probability.
+        """
         return self.classes_[np.argmax(self.predict_proba(X), axis = 1)]
