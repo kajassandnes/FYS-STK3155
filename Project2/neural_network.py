@@ -1,15 +1,9 @@
 import numpy as np
 import jax
 jax.config.update("jax_enable_x64", True)   # 64-bit floats, so that results agree with numpy to ~1e-15
-import jax.numpy as jnp                    # numpy-compatible functions that JAX can differentiate
 import optax
 from utils import *
-import matplotlib.pyplot as plt
 from sklearn.base import BaseEstimator
-from sklearn.metrics import (confusion_matrix, ConfusionMatrixDisplay,
-                             accuracy_score, precision_score, recall_score, f1_score,
-                             classification_report,
-                             roc_curve as sk_roc_curve, roc_auc_score, RocCurveDisplay)
 
 
 # NeuralNetwork class:
@@ -53,21 +47,9 @@ class NeuralNetwork:
 
         self.layers = list(zip(W, B))
 
-    def predict(self, inputs):
+    def _predict(self, layers, inputs):
         """
-        Complete feed forward pass and prefict based on inputs
-        """
-        a = inputs
-        for (W, b), activation_func in zip(self.layers, self.activation_funcs):
-            z = a @ W + b
-            a = activation_func(z)
-
-        return a
-
-    def predict_layers(self, layers, inputs):
-        """
-        Complete feed forward pass and predict based on inputs with layers as input.
-        Needed for automatic differentiation with jax.
+        Complete feedforward pass and predict
         """
         a = inputs
         for (W, b), activation_func in zip(layers, self.activation_funcs):
@@ -75,21 +57,29 @@ class NeuralNetwork:
             a = activation_func(z)
 
         return a
-
-    def cost(self, inputs, targets):
+    
+    def _cost(self, layers, inputs, targets):
         """
         Compute cost via the object's cost function on desired inputs and targets
         """
-        a = self.predict(inputs)
+        a = self._predict(layers, inputs)
+
         return self.cost_fun(a, targets)
 
-    def cost_layers(self, inputs, layers, targets):
+    def predict(self, inputs):                  
+        return self._predict(self.layers, inputs)
+
+    def cost(self, inputs, targets):         
+        return self._cost(self.layers, inputs, targets)
+
+    def jax_gradient(self, inputs, layers,  targets):
         """
-        Compute cost via obect's cost function on desired inputs and targets with layers as input.
-        Needed for automatic differentiation with jax.
+        Compute gradient with automatic differentiation via jax.
+        layers contain weights and biases, which are the parameters
+        differentiated with respect to.
         """
-        a = self.predict_layers(layers, inputs)
-        return self.cost_fun(a, targets)
+        grad = jax.grad(self._cost)
+        return grad(layers, inputs, targets)
 
     def _feedforward(self, inputs):
         """
@@ -137,12 +127,6 @@ class NeuralNetwork:
 
         return layer_grads
 
-    def jax_gradient(self, inputs, layers,  targets):
-        """
-        Compute gradient with automatic differentiation via jax
-        """
-        grad = jax.grad(self.cost_layers,  argnums = 1)
-        return grad(inputs, layers, targets)
 
     def _make_batches(self, n, batch_size, rng):
         """
@@ -163,27 +147,15 @@ class NeuralNetwork:
         n_datapoints = inputs.shape[0]
         rng = np.random.default_rng(self.seed)
 
-        if autodiff:
-            for _ in range(n_epochs):
-                if report_progress:
-                    print(f"Epoch: {_ + 1}")
-                for batch in self._make_batches(n_datapoints, batch_size, rng):
-                    layers_grad = self.jax_gradient(inputs[batch], self.layers, targets[batch])
-                    updates, opt_state = optimizer.update(layers_grad, opt_state, layers_optax)
-                    layers_optax = optax.apply_updates(layers_optax, updates)
+        for _ in range(n_epochs):
+            if report_progress:
+                print(f"Epoch: {_ + 1}")
+            for batch in self._make_batches(n_datapoints, batch_size, rng):
+                layers_grad = self.backpropagation(inputs[batch], targets[batch])
+                updates, opt_state = optimizer.update(layers_grad, opt_state, layers_optax)
+                layers_optax = optax.apply_updates(layers_optax, updates)
 
-                    self.layers = layers_optax
-        else:
-            for _ in range(n_epochs):
-                if report_progress:
-                    print(f"Epoch: {_ + 1}")
-                for batch in self._make_batches(n_datapoints, batch_size, rng):
-                    layers_grad = self.backpropagation(inputs[batch], targets[batch])
-                    updates, opt_state = optimizer.update(layers_grad, opt_state, layers_optax)
-                    layers_optax = optax.apply_updates(layers_optax, updates)
-
-                    self.layers = layers_optax
-
+                self.layers = layers_optax
 
     def train_pgd(self, inputs, targets, optimizer, n_epochs = 100, autodiff = False, report_progress = False):
         """
@@ -193,33 +165,22 @@ class NeuralNetwork:
         """
         layers_optax = self.layers
         opt_state = optimizer.init(layers_optax)
+        
+        for _ in range(n_epochs):
+            if report_progress:
+                print(f"Epoch: {_ + 1}")
 
-        if autodiff:
-            for _ in range(n_epochs):
-                if report_progress:
-                    print(f"Epoch: {_ + 1}")
-                layers_grad = self.jax_gradient(inputs, self.layers, targets)
-                updates, opt_state = optimizer.update(layers_grad, opt_state, layers_optax)
-                layers_optax = optax.apply_updates(layers_optax, updates)
+            layers_grad = self.backpropagation(inputs, targets)
+            updates, opt_state = optimizer.update(layers_grad, opt_state, layers_optax)
+            layers_optax = optax.apply_updates(layers_optax, updates)
 
-                self.layers = layers_optax
-        else:
-            for _ in range(n_epochs):
-                if report_progress:
-                    print(f"Epoch: {_ + 1}")
-                layers_grad = self.backpropagation(inputs, targets)
-                updates, opt_state = optimizer.update(layers_grad, opt_state, layers_optax)
-                layers_optax = optax.apply_updates(layers_optax, updates)
-
-                self.layers = layers_optax
+            self.layers = layers_optax
           
     def save_layers(self):
         """
         Method used to save layers for later validation so layers can be altered.
         """
         return self.layers
-
-
 
 
 class EstimatorClassifier(NeuralNetwork, BaseEstimator):
