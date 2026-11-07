@@ -1,3 +1,13 @@
+import numpy as np
+import jax
+jax.config.update("jax_enable_x64", True)   # 64-bit floats, so that results agree with numpy to ~1e-15
+import jax.numpy as jnp
+import matplotlib.pyplot as plt
+from sklearn.metrics import (confusion_matrix, ConfusionMatrixDisplay,
+                             accuracy_score, precision_score, recall_score, f1_score,
+                             classification_report,
+                             roc_curve as sk_roc_curve, roc_auc_score, RocCurveDisplay)
+
 # useful functions
 def ReLU(z):
     return jnp.where(z > 0, z, 0.0)
