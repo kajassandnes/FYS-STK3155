@@ -3,107 +3,21 @@ import jax
 jax.config.update("jax_enable_x64", True)   # 64-bit floats, so that results agree with numpy to ~1e-15
 import jax.numpy as jnp                    # numpy-compatible functions that JAX can differentiate
 import optax
+from utils import *
 import matplotlib.pyplot as plt
+from sklearn.base import BaseEstimator
 from sklearn.metrics import (confusion_matrix, ConfusionMatrixDisplay,
                              accuracy_score, precision_score, recall_score, f1_score,
                              classification_report,
                              roc_curve as sk_roc_curve, roc_auc_score, RocCurveDisplay)
-from sklearn.base import BaseEstimator
 
-# useful functions
-def ReLU(z):
-    return jnp.where(z > 0, z, 0.0)
-
-def ReLU_der(z):
-    return jnp.where(z > 0, 1.0, 0.0)
-
-def sigmoid(z):
-    return 1 / (1 + jnp.exp(-z))
-
-def sigmoid_der(z):
-    return sigmoid(z) * (1 - sigmoid(z))
-
-def identity(z):
-    return z
-
-def identity_der(z):
-    return 1
-
-def mse(predict, target):
-    return jnp.mean((predict - target) ** 2)
-
-def mse_der(predict, target):
-    return 2 * (predict - target) / predict.size
-
-def cross_entropy(predict, target):
-    return jnp.sum(-target * jnp.log(predict))
-
-def binary_cross_entropy(predict, target):
-    p = jnp.clip(predict, 1e-12, 1 - 1e-12)
-    return -jnp.sum(target * jnp.log(p) + (1 - target) * jnp.log1p(-p))
-
-def softmax(z):
-    """Compute softmax values for each set of scores in the rows of the matrix z.
-    Used with batched input data: one row of scores per sample."""
-    e_z = jnp.exp(z - jnp.max(z, axis=1, keepdims=True))
-    return e_z / jnp.sum(e_z, axis=1, keepdims=True)
-
-def smce_der(predict, target):
-    return predict - target 
-
-def one_hot(y, n_classes=None):
-    """Integer labels -> one-hot rows."""
-    n_classes = int(np.max(y)) + 1 if n_classes is None else n_classes
-    Y = np.zeros((len(y), n_classes))
-    Y[np.arange(len(y)), y] = 1.0
-    return Y
-
-# classification plotting:
-
-def confusion_matrix_multiclass(y_true, y_pred, n_classes):
-    """C[i, j] = number of samples of true class i predicted as class j."""
-    Cm = np.zeros((n_classes, n_classes), dtype=int)
-    np.add.at(Cm, (np.asarray(y_true).astype(int), np.asarray(y_pred).astype(int)), 1)
-    return Cm
-
-
-def per_class_from_confusion(Cm):
-    """Precision and recall of every class from the K x K matrix."""
-    tp = np.diag(Cm).astype(float)
-    return tp / np.maximum(Cm.sum(axis=0), 1), tp / np.maximum(Cm.sum(axis=1), 1)
-
-def plot_classification(y, p, threshold = 0.5, label = "your classifier"):
-      y_test, p_test = y, p          # replace by your test labels and output probabilities
-      y_pred = p_test > threshold
-
-      cm = confusion_matrix(y_test, y_pred)   # [[TN, FP], [FN, TP]]
-      print(cm)
-      print(f"accuracy {accuracy_score(y_test, y_pred):.4f}  precision {precision_score(y_test, y_pred, zero_division=0):.4f}  "
-            f"recall {recall_score(y_test, y_pred):.4f}  F1 {f1_score(y_test, y_pred):.4f}")
-      print(classification_report(y_test, y_pred, target_names=["negative", "positive"], zero_division=0))
-
-      fpr, tpr, thresholds = sk_roc_curve(y_test, p_test, drop_intermediate=False)
-      print(f"AUC {roc_auc_score(y_test, p_test):.4f}")
-
-      fig, ax = plt.subplots(1, 2, figsize=(9, 3.6))
-      ConfusionMatrixDisplay(cm, display_labels=["negative", "positive"]).plot(ax=ax[0], colorbar=False)
-      RocCurveDisplay.from_predictions(y_test, p_test, ax=ax[1], name = label)
-      ax[1].plot([0, 1], [0, 1], "k--", lw=0.8)
-      plt.tight_layout(); plt.show()
 
 # NeuralNetwork class:
 
 class NeuralNetwork:
-    def __init__(
-        self,
-        network_input_size,
-        layer_output_sizes,
-        activation_funcs,
-        activation_ders,
-        cost_fun,
-        cost_der,
-        lmbda
-    ):
+    def __init__( self, network_input_size, layer_output_sizes, activation_funcs,
+                  activation_ders, cost_fun, cost_der, lmbda, seed = 2026 ):
+        """Description"""       
         self.network_input_size = network_input_size    
         self.layer_output_sizes = layer_output_sizes
         self.activation_funcs = activation_funcs
@@ -111,32 +25,33 @@ class NeuralNetwork:
         self.cost_fun = cost_fun
         self.cost_der = cost_der
         self.lmbda = lmbda
+        self.seed = seed
+        self._initialize_layers()
 
-        vars = np.ones((len(layer_output_sizes), 2))
-        self.initialize_layers(vars, rs = 2026)
-
-    def __str__(self):
+    def __str__(self) -> "str":
         return(f"Neural network with {len(self.layer_output_sizes) - 1} hidden layers.")
 
-    def initialize_layers(self, vars, rs = 2026):
+    def _initialize_layers(self, init=None) -> None:
+        """Initialises all weights and biases from a normal distribution with mean zero and
+        either He or Xavier initialisation. 
+
+        He initialisation:              std=sqrt( 2 /  M_{l-1} ) if init = "He".
+        Xavier (Glorot) initialization: std=sqrt( 2 / (M_{l-1} + M_l) ) else.
+
+        Layers are stored as a list of (W, b), W: (n_in, n_out), b: (n_out,)
         """
-        Make new layers with wieghts and biases from normal distribution with corresponding variances
-        Note that length of vars must match number of layers. vars is indexed [(var_w1, var_b1), (var_w2, var_b2),...]
-        """
-        assert(len(vars) == len(self.layer_output_sizes)), "Number of variances must equal number of layers"
-        rng = np.random.default_rng(rs)
-        layers = []
+        rng = np.random.default_rng(self.seed)
+        sizes = [self.network_input_size] + list(self.layer_output_sizes)
+        pairs = list(zip(sizes[:-1], sizes[1:]))
+        
+        if init == "He":
+            W = [rng.normal(loc=0, scale=np.sqrt(2/n_in), size=(n_in, n_out)) for n_in, n_out in pairs]
+            B = [np.ones(n_out) * 0.01 for _, n_out in pairs]
+        else:
+            W = [rng.normal(loc=0, scale=np.sqrt(2/(n_in + n_out)), size=(n_in, n_out)) for n_in, n_out in pairs]
+            B = [np.zeros(n_out) for _, n_out in pairs]
 
-        i_size = self.network_input_size
-        for layer_output_size, sigmas in zip(self.layer_output_sizes, vars):
-            sigma_w, sigma_b = sigmas
-            W = rng.normal(loc = 0.0, scale = sigma_w, size =(i_size, layer_output_size))
-            b = rng.normal(loc = 0.0, scale = sigma_b, size = layer_output_size)
-            layers.append((W, b))
-
-            i_size = layer_output_size
-
-        self.layers = layers
+        self.layers = list(zip(W, B))
 
     def predict(self, inputs):
         """
@@ -151,7 +66,8 @@ class NeuralNetwork:
 
     def predict_layers(self, layers, inputs):
         """
-        Complete feed forward pass and predict based on inputs with layers as input
+        Complete feed forward pass and predict based on inputs with layers as input.
+        Needed for automatic differentiation with jax.
         """
         a = inputs
         for (W, b), activation_func in zip(layers, self.activation_funcs):
@@ -169,12 +85,13 @@ class NeuralNetwork:
 
     def cost_layers(self, inputs, layers, targets):
         """
-        Compute cost via obect's cost function on desired inputs and targets with layers as input
+        Compute cost via obect's cost function on desired inputs and targets with layers as input.
+        Needed for automatic differentiation with jax.
         """
         a = self.predict_layers(layers, inputs)
         return self.cost_fun(a, targets)
 
-    def _feed_forward_saver(self, inputs):
+    def _feedforward(self, inputs):
         """
         Complete feed forward pass that saves intermediary values
         Private method used internally for backpropagation
@@ -191,12 +108,11 @@ class NeuralNetwork:
 
         return layer_inputs, zs, a
 
-    def compute_gradient(self, inputs, targets):
+    def backpropagation(self, inputs, targets):
         """
         Computes gradient via analytical backpropagation
         """
-
-        layer_inputs, zs, predict = self._feed_forward_saver(inputs)
+        layer_inputs, zs, predict = self._feedforward(inputs)
 
         layer_grads = [() for _ in self.layers]
 
@@ -227,14 +143,6 @@ class NeuralNetwork:
         """
         grad = jax.grad(self.cost_layers,  argnums = 1)
         return grad(inputs, layers, targets)
-    
-    def update_weights(self, layer_grads, gamma):
-        """
-        Updates self.layers according to layer gradients. Equivalent to one step in
-        plain gradient descent of learning rate gamma.
-        """
-        updated_layers = [(W - gamma * W_g, b - gamma * b_g) for (W, b), (W_g, b_g) in zip(self.layers, layer_grads)]
-        self.layers = updated_layers
 
     def _make_batches(self, n, batch_size, rng):
         """
@@ -243,108 +151,71 @@ class NeuralNetwork:
         idx = rng.permutation(n)
         return [idx[i:i + batch_size] for i in range(0, n, batch_size)]
 
-    def train_sgd(
-        self, inputs, targets, optimizer, rs = 2026, n_epochs = 50, batch_size = 5, autodiff = False, report_progress = False
-        ):
+    def train_sgd(self, inputs, targets, optimizer:optax.GradientTransformation, n_epochs = 50, batch_size = 5, 
+                  autodiff = False, report_progress = False) -> None:
         """
         Trains network using stochastic gradient descent.
-        Pass an initialized optimizer as the optimizer argument.
+        optimizer (optax.GradientTransformation): already initialized optimizer
         Gradually updates self.layers, returns None
         """
-
         layers_optax = self.layers
         opt_state = optimizer.init(layers_optax)
-
-        rng = np.random.default_rng(rs)
         n_datapoints = inputs.shape[0]
+        rng = np.random.default_rng(self.seed)
 
-        if autodiff == True:
-            if report_progress == False:
-                for _ in range(n_epochs):
-                    for batch in self._make_batches(n_datapoints, batch_size, rng):
-                        layers_grad = self.jax_gradient(inputs[batch], self.layers, targets[batch])
-                        updates, opt_state = optimizer.update(layers_grad, opt_state, layers_optax)
-                        layers_optax = optax.apply_updates(layers_optax, updates)
-
-                        self.layers = layers_optax
-            else:
-                for _ in range(n_epochs ):
+        if autodiff:
+            for _ in range(n_epochs):
+                if report_progress:
                     print(f"Epoch: {_ + 1}")
-                    for batch in self._make_batches(n_datapoints, batch_size, rng):
-                        layers_grad = self.jax_gradient(inputs[batch], self.layers, targets[batch])
-                        updates, opt_state = optimizer.update(layers_grad, opt_state, layers_optax)
-                        layers_optax = optax.apply_updates(layers_optax, updates)
+                for batch in self._make_batches(n_datapoints, batch_size, rng):
+                    layers_grad = self.jax_gradient(inputs[batch], self.layers, targets[batch])
+                    updates, opt_state = optimizer.update(layers_grad, opt_state, layers_optax)
+                    layers_optax = optax.apply_updates(layers_optax, updates)
 
-                        self.layers = layers_optax
+                    self.layers = layers_optax
         else:
-            if report_progress == False:
-                for _ in range(n_epochs):
-                    for batch in self._make_batches(n_datapoints, batch_size, rng):
-                        layers_grad = self.compute_gradient(inputs[batch], targets[batch])
-                        updates, opt_state = optimizer.update(layers_grad, opt_state, layers_optax)
-                        layers_optax = optax.apply_updates(layers_optax, updates)
-
-                        self.layers = layers_optax
-            else:
-                for _ in range(n_epochs ):
+            for _ in range(n_epochs):
+                if report_progress:
                     print(f"Epoch: {_ + 1}")
-                    for batch in self._make_batches(n_datapoints, batch_size, rng):
-                        layers_grad = self.compute_gradient(inputs[batch], targets[batch])
-                        updates, opt_state = optimizer.update(layers_grad, opt_state, layers_optax)
-                        layers_optax = optax.apply_updates(layers_optax, updates)
+                for batch in self._make_batches(n_datapoints, batch_size, rng):
+                    layers_grad = self.backpropagation(inputs[batch], targets[batch])
+                    updates, opt_state = optimizer.update(layers_grad, opt_state, layers_optax)
+                    layers_optax = optax.apply_updates(layers_optax, updates)
 
-                        self.layers = layers_optax
-
-
+                    self.layers = layers_optax
 
 
-    def train_pgd(
-            self, inputs, targets, optimizer, n_epochs = 100, autodiff = False, report_progress = False
-    ):
+    def train_pgd(self, inputs, targets, optimizer, n_epochs = 100, autodiff = False, report_progress = False):
         """
-        Trains network plain gradient descent.
-        Pass an initialized optax optimizer as the optimizer argument
+        Trains network with plain gradient descent.
+        optimizer (optax.GradientTransformation): already initialized optimizer
         Gradually updatater self.layers, returns None
         """
-
         layers_optax = self.layers
         opt_state = optimizer.init(layers_optax)
 
-
-        if autodiff == True:
-            if report_progress == False:
-                for _ in range(n_epochs):
-                    layers_grad = self.jax_gradient(inputs, self.layers, targets)
-                    updates, opt_state = optimizer.update(layers_grad, opt_state, layers_optax)
-                    layers_optax = optax.apply_updates(layers_optax, updates)
-
-                    self.layers = layers_optax
-            else:
-                for _ in range(n_epochs):
+        if autodiff:
+            for _ in range(n_epochs):
+                if report_progress:
                     print(f"Epoch: {_ + 1}")
-                    layers_grad = self.jax_gradient(inputs, self.layers, targets)
-                    updates, opt_state = optimizer.update(layers_grad, opt_state, layers_optax)
-                    layers_optax = optax.apply_updates(layers_optax, updates)
+                layers_grad = self.jax_gradient(inputs, self.layers, targets)
+                updates, opt_state = optimizer.update(layers_grad, opt_state, layers_optax)
+                layers_optax = optax.apply_updates(layers_optax, updates)
 
-                    self.layers = layers_optax
+                self.layers = layers_optax
         else:
-            if report_progress == False:
-                for _ in range(n_epochs):
-                    layers_grad = self.compute_gradient(inputs, targets)
-                    updates, opt_state = optimizer.update(layers_grad, opt_state, layers_optax)
-                    layers_optax = optax.apply_updates(layers_optax, updates)
-
-                    self.layers = layers_optax
-            else:
-                for _ in range(n_epochs):
+            for _ in range(n_epochs):
+                if report_progress:
                     print(f"Epoch: {_ + 1}")
-                    layers_grad = self.compute_gradient(inputs, self.layers, targets)
-                    updates, opt_state = optimizer.update(layers_grad, opt_state, layers_optax)
-                    layers_optax = optax.apply_updates(layers_optax, updates)            
-        
+                layers_grad = self.backpropagation(inputs, targets)
+                updates, opt_state = optimizer.update(layers_grad, opt_state, layers_optax)
+                layers_optax = optax.apply_updates(layers_optax, updates)
+
+                self.layers = layers_optax
+          
     def save_layers(self):
         """
-        Method used to save layers for later validation so layers can be altered
+        Method used to save layers for later validation so layers can be altered.
         """
         return self.layers
 
@@ -358,67 +229,34 @@ class EstimatorClassifier(NeuralNetwork, BaseEstimator):
     and our own NeuralNetwork. Has fixed size of one layer as that is what
     we worked with for part e.
     """
-
-    def __init__(
-        self,
-        hidden = 64,
-        activation_funcs = (ReLU, softmax),
-        activation_ders = (ReLU_der, lambda _: 1),
-        cost_fun = cross_entropy,
-        cost_der = smce_der,
-        random_seed = 2026,
-        gamma = 0.03,
-        epochs = 10,
-        batch_size = 10,
-        lmbda = 0.0
-    ):    
+    def __init__( self, hidden = 64, activation_funcs = (ReLU, softmax), activation_ders = (ReLU_der, lambda _: 1),
+                  cost_fun = cross_entropy, cost_der = smce_der, seed = 2026, gamma = 0.03, epochs = 10,
+                  batch_size = 10, lmbda = 0.0 ):
+        """
+        Description
+        """
         self.hidden = hidden
         self.activation_funcs = activation_funcs
         self.activation_ders = activation_ders
         self.cost_fun = cost_fun
         self.cost_der = cost_der
-        self.random_seed = random_seed
+        self.seed = seed
         self.gamma = gamma
         self.epochs = epochs
         self.batch_size = batch_size
         self.lmbda = lmbda
 
-
-    def initialize_layers_(self):
-        """
-        Make new layers with wieghts and biases according to
-        He initialization.
-        """
-
-        self.layer_output_sizes = (self.hidden, len(self.classes_))
-        vars = np.zeros_like(self.layer_output_sizes)
-        vars[0] = self.input_size
-        vars[1:] = self.layer_output_sizes[:-1]
-        vars = np.sqrt(2 / vars)
-        rng = np.random.default_rng(self.random_seed)
-        layers = []
-
-        i_size = self.input_size
-        for layer_output_size, sigma_w in zip(self.layer_output_sizes, vars):
-            W = rng.normal(loc = 0.0, scale = sigma_w, size =(i_size, layer_output_size))
-            b = np.zeros(layer_output_size, dtype = float) + 0.01
-            layers.append((W, b))
-
-            i_size = layer_output_size
-
-        self.layers = layers
-
     def fit(self, X, y):
         """
         Sklearn compliant classifier fit method.
         """
-
         self.classes_ = np.unique(y)
         Y = one_hot(np.searchsorted(self.classes_, y), len(self.classes_))
-        self.input_size = X.shape[1]
-        self.initialize_layers_()
+        self.network_input_size = X.shape[1]
+        self.layer_output_sizes = (self.hidden, len(self.classes_))
+        self._initialize_layers(init="He")
         optimizer = optax.adam(learning_rate = self.gamma)
-        self.train_sgd(X, Y, optimizer, self.random_seed, self.epochs, self.batch_size)
+        self.train_sgd(X, Y, optimizer, self.epochs, self.batch_size)
         self.layers_ = self.layers
         return self
 
