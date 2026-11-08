@@ -66,6 +66,18 @@ class NeuralNetwork:
 
         return self.cost_fun(a, targets)
 
+    def _cost_with_penalty(self, layers, inputs, targets):
+        """Function is used for testing gradients against 
+        automatic differentiation with jax.
+        """
+        c = self._cost(layers, inputs, targets)
+        ws = [W for W, b in layers]
+
+        if self.penalty == "l1":
+            return c + self.lmbda * sum(jnp.sum(jnp.abs(W)) for W in ws)
+        else:
+            return c + 0.5 * self.lmbda * sum(jnp.sum(W**2) for W in ws)
+
     def predict(self, inputs):                  
         return self._predict(self.layers, inputs)
 
@@ -78,7 +90,7 @@ class NeuralNetwork:
         layers contain weights and biases, which are the parameters
         differentiated with respect to.
         """
-        grad = jax.grad(self._cost)
+        grad = jax.grad(self._cost_with_penalty)
         return grad(layers, inputs, targets)
     
     def _penalty_grad(self, W):
