@@ -80,52 +80,67 @@ class NeuralNetwork:
         """
         grad = jax.grad(self._cost)
         return grad(layers, inputs, targets)
+    
+    def _penalty_grad(self, W):
+        """Adds regularization term."""
+        if self.lmbda == 0:
+            return 0.0
+        elif self.penalty == "l1":
+            return self.lmbda * np.sign(W)
+        else:
+            return self.lmbda * W          
 
     def _feedforward(self, inputs):
         """
-        Complete feed forward pass that saves intermediary values
-        Private method used internally for backpropagation
+        Feedforward is used to calculate activations and weighted inputs by
+        1. looping through all layers
+        2. calculating weighted inputs by z^l = a^{l-1} * w^l + b^l
+        3. calculating activations by a^l = sigma(z^l), where sigma is the activation
+           function
+        4. storing all activations and weighted inputs in lists
+        5. returns activations and weighted activations
+
+        inputs (n_samples, n_features): input data. 
         """
-        layer_inputs = []
-        zs = []
         a = inputs
+        zs, activations = [], [inputs]
+
         for (W, b), activation_func in zip(self.layers, self.activation_funcs):
-            layer_inputs.append(a)
             z = a @ W + b
             a = activation_func(z)
-
             zs.append(z)
+            activations.append(a)
 
-        return layer_inputs, zs, a
+        return zs, activations
 
     def backpropagation(self, inputs, targets):
         """
-        Computes gradient via analytical backpropagation
+        Backpropagation is used to calculate gradients by
+        1. using feedforward to calculate all activations and weighted inputs
+        2. using backward pass to calculate all errors from the last to the 
+           first layer
+        3. calculating all derivatives of the cost with respect to all weights
+           and biases
+
+        targets (n_samples, n_outputs) : target
+        inputs (n_samples, n_inputs)  : input data
+        
+        where n_samples is the length of each minibatch when using plain gradient descent.
         """
-        layer_inputs, zs, predict = self._feedforward(inputs)
+        zs, activations = self._feedforward(inputs)
+        grads = [None] * len(self.layers)
 
-        layer_grads = [() for _ in self.layers]
+        # error in the last layer
+        delta = self.cost_der(activations[-1], targets) * self.activation_ders[-1](zs[-1])
 
-        # We loop over the layers, from the last to the first
-        for i in reversed(range(len(self.layers))):
-            layer_input, z, activation_der = layer_inputs[i], zs[i], self.activation_ders[i]
-            W_current = self.layers[i][0]
+        for l in reversed(range(len(self.layers))):
+            W, b = self.layers[l]
+            grads[l] = (activations[l].T @ delta + self._penalty_grad(W), delta.sum(axis=0))
 
-            if i == len(self.layers) - 1:
-                # For last layer we use cost derivative as dC_da(L) can be computed directly
-                dC_da = self.cost_der(predict, targets)
-            else:
-                # For other layers we build on previous z derivative, as dC_da(i) = dC_dz(i+1) * dz(i+1)_da(i)
-                (W, b) = self.layers[i + 1]
-                dC_da = dC_dz @ W.T
+            if l > 0:                       # error one layer back
+                delta = (delta @ W.T) * self.activation_ders[l - 1](zs[l - 1])
 
-            dC_dz = dC_da * activation_der(z)
-            dC_dW = layer_input.T @ dC_dz + self.lmbda * W_current
-            dC_db = np.sum(dC_dz, axis = 0)
-
-            layer_grads[i] = (dC_dW, dC_db)
-
-        return layer_grads
+        return grads
 
 
     def _make_batches(self, n, batch_size, rng):
@@ -135,21 +150,35 @@ class NeuralNetwork:
         idx = rng.permutation(n)
         return [idx[i:i + batch_size] for i in range(0, n, batch_size)]
 
-    def train_sgd(self, inputs, targets, optimizer:optax.GradientTransformation, n_epochs = 50, batch_size = 5, 
-                  autodiff = False, report_progress = False) -> None:
-        """
-        Trains network using stochastic gradient descent.
-        optimizer (optax.GradientTransformation): already initialized optimizer
-        Gradually updates self.layers, returns None
+    def train_sgd(self, inputs, targets, optimizer:optax.GradientTransformation, 
+                  n_epochs = 50, batch_size = 5, report_progress = False, 
+                  X_val=None, y_val=None, record_every=None) -> dict:
+        """Stochastic gradient descent trains the network by
+        1. looping through n_epochs
+        2. splitting the input data into random minibatches of size m
+        3. using backpropagation to calculate gradients for each weight and bias
+        4. updating all weights and biases
+        5. optionally saves all cost from training and validation data
+
+        inputs (n_samples, n_input)     - input data
+        targets (n_samples, n_output)   - target
+        optimizer (optax.GradientTransformation) - already initialized optimizer
+        n_epochs (int)                  - number of epochs
+        batch_size (int)                - size of minibatch
+        report_progress (bool)          - prints epoch
+        X_val (n_val_samples, n_input)  - validation data
+        X_val (n_val_samples, n_output) - validation data
+        record_every (int)              - recording frequency        
         """
         layers_optax = self.layers
         opt_state = optimizer.init(layers_optax)
         n_datapoints = inputs.shape[0]
         rng = np.random.default_rng(self.seed)
+        history = {"epoch": [], "train": [], "val": []}
 
-        for _ in range(n_epochs):
+        for epoch in range(1, n_epochs + 1):
             if report_progress:
-                print(f"Epoch: {_ + 1}")
+                print(f"Epoch: {epoch}")
             for batch in self._make_batches(n_datapoints, batch_size, rng):
                 layers_grad = self.backpropagation(inputs[batch], targets[batch])
                 updates, opt_state = optimizer.update(layers_grad, opt_state, layers_optax)
@@ -157,7 +186,16 @@ class NeuralNetwork:
 
                 self.layers = layers_optax
 
-    def train_pgd(self, inputs, targets, optimizer, n_epochs = 100, autodiff = False, report_progress = False):
+            if record_every and epoch % record_every == 0:
+                history["epoch"].append(epoch)
+                history["train"].append(float(self.cost(inputs, targets)))
+                history["val"].append(float(self.cost(X_val, y_val)) if X_val is not None else None)
+        
+        return history
+
+    def train_pgd(self, inputs, targets, optimizer:optax.GradientTransformation,
+                  n_epochs = 100, report_progress = False, X_val=None, y_val=None, 
+                  record_every=None) -> dict:
         """
         Trains network with plain gradient descent.
         optimizer (optax.GradientTransformation): already initialized optimizer
@@ -165,16 +203,24 @@ class NeuralNetwork:
         """
         layers_optax = self.layers
         opt_state = optimizer.init(layers_optax)
+        history = {"epoch": [], "train": [], "val": []}
         
-        for _ in range(n_epochs):
+        for epoch in range(1, n_epochs + 1):
             if report_progress:
-                print(f"Epoch: {_ + 1}")
+                print(f"Epoch: {epoch}")
 
             layers_grad = self.backpropagation(inputs, targets)
             updates, opt_state = optimizer.update(layers_grad, opt_state, layers_optax)
             layers_optax = optax.apply_updates(layers_optax, updates)
 
             self.layers = layers_optax
+
+            if record_every and epoch % record_every == 0:
+                history["epoch"].append(epoch)
+                history["train"].append(float(self.cost(inputs, targets)))
+                history["val"].append(float(self.cost(X_val, y_val)) if X_val is not None else None)
+        
+        return history
           
     def save_layers(self):
         """
@@ -192,7 +238,7 @@ class EstimatorClassifier(NeuralNetwork, BaseEstimator):
     """
     def __init__( self, hidden = 64, activation_funcs = (ReLU, softmax), activation_ders = (ReLU_der, lambda _: 1),
                   cost_fun = cross_entropy, cost_der = smce_der, seed = 2026, gamma = 0.03, epochs = 10,
-                  batch_size = 10, lmbda = 0.0 ):
+                  batch_size = 10, lmbda = 0.0, penalty = "l2" ):
         """
         Description
         """
@@ -206,6 +252,7 @@ class EstimatorClassifier(NeuralNetwork, BaseEstimator):
         self.epochs = epochs
         self.batch_size = batch_size
         self.lmbda = lmbda
+        self.penalty = penalty
 
     def fit(self, X, y):
         """
