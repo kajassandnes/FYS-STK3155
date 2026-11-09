@@ -1,8 +1,11 @@
 import numpy as np
+import seaborn as sns
 import jax
 jax.config.update("jax_enable_x64", True)   # 64-bit floats, so that results agree with numpy to ~1e-15
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
+from sklearn.model_selection import KFold
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import (confusion_matrix, ConfusionMatrixDisplay,
                              accuracy_score, precision_score, recall_score, f1_score,
                              classification_report,
@@ -55,6 +58,41 @@ def one_hot(y, n_classes=None):
     Y = np.zeros((len(y), n_classes))
     Y[np.arange(len(y)), y] = 1.0
     return Y
+
+# k-fold cross validation
+def scale(X_train, X_val, y_train, y_val):
+    """Used to scale within k-fold cross validation."""
+    scaler = StandardScaler()
+    y_mean = y_train.mean()
+    return (scaler.fit_transform(X_train), scaler.transform(X_val),
+            y_train - y_mean, y_val - y_mean)
+
+def cv_mse(X, y, fit, k=5, rs=2026):
+    """Mean validation MSE over k folds."""
+    scores = []
+    for tr, va in KFold(k, shuffle=True, random_state=rs).split(X):
+        X_tr, X_va, y_tr, y_va = scale(X[tr], X[va], y[tr], y[va])
+        net = fit(X_tr, y_tr)
+        scores.append(float(mse(net.predict(X_va), y_va)))
+    mean = np.mean(scores)
+    sem = np.std(scores, ddof=1) / np.sqrt(len(scores))
+    
+    return ( mean, sem )
+
+
+# regression plotting
+
+def plot_heatmap(mean, sem, x_labels, y_labels, xlabel, ylabel, title=""):
+    """
+    LLM Use:
+    Function made by LLM
+    """
+    labels = np.array([[f"{m:.3f}\n± {s:.3f}" for m, s in zip(row_m, row_s)]
+                       for row_m, row_s in zip(mean, sem)])
+    ax = sns.heatmap(mean, xticklabels=x_labels, yticklabels=y_labels,
+                     annot=labels, fmt="", cmap="viridis_r")
+    ax.set(xlabel=xlabel, ylabel=ylabel, title=title)
+    plt.show()
 
 
 # classification plotting:
