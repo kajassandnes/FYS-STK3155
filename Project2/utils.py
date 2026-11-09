@@ -20,7 +20,7 @@ def ReLU_der(z):
 
 def leaky_ReLU(z, a=0.01):
     return jnp.where(z > 0, z, a * z)
-    
+
 def leaky_ReLU_der(z, a=0.01):
     return jnp.where(z > 0, 1.0, a)
 
@@ -84,6 +84,24 @@ def cv_mse(X, y, fit, k=5, rs=2026):
     sem = np.std(scores, ddof=1) / np.sqrt(len(scores))
     
     return ( mean, sem )
+
+
+def run_grid(X, y, make_fit, row_values, col_values):
+    """2D CV grid. make_fit(row, col) returns a fit(X_tr, y_tr) function.
+    """
+    mean = np.zeros((len(row_values), len(col_values)))
+    sem  = np.zeros_like(mean)
+    for i, r in enumerate(row_values):
+        for j, c in enumerate(col_values):
+            mean[i, j], sem[i, j] = cv_mse(X, y, make_fit(r, c))
+            print(r, c, mean[i, j], "+-", sem[i, j])
+    return mean, sem
+
+
+def best_cell(mean, row_values, col_values):
+    """Row value, column value and MSE of the lowest cell."""
+    i, j = np.unravel_index(np.argmin(mean), mean.shape)
+    return row_values[i], col_values[j], mean[i, j]
 
 
 # regression plotting
