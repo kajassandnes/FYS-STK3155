@@ -9,9 +9,9 @@ Notes on the code can be found alongside it in the jupyter notebooks. Note that 
 The random seed: "2026" has been used throughout to make results reproducable.
 
 ## Code Description
-The mnist.npz file contains the data used in the classification analysis. It is imported directly into the part_e notebook.
+mnist.npz: file contains the data used in the classification analysis. It is imported directly into the part_e notebook.
 
-The neural_network.py file contains the code for the feed forward neural network written for this project. It also
+neural_network.py: file contains the code for the feed forward neural network written for this project. It also
 contains a subclass: EstimatorClassifier that can be used as an sklearn BaseEstimator class. 
 
 part_b_2.ipynb: contains plots and results connected to part b, c and d.
@@ -22,7 +22,14 @@ runge_data.py: contains useful functions related to dataset and scaling.
 
 utils.py: contains functions for plotting. It also contains activation and cost functions, and other functions related to the NeuralNetwork class.
 
+requirements.txt: contain all required packages needed for this project.
+
 Code testing:
 The test_gradient.py file asserts that the backpropagation algorithm of the NeuralNetwork class returns the same gradients
 as jax automatic differentiation does. The classification part also trains an sklearn MLPClassifier with identical parameters
 and random seed to verify that results obtained are comparable.
+
+## Requirements
+You can download all required packages with the following line:
+
+  pip install -r requirements.txt
