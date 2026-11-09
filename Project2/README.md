@@ -30,6 +30,4 @@ as jax automatic differentiation does. The classification part also trains an sk
 and random seed to verify that results obtained are comparable.
 
 ## Requirements
-You can download all required packages with the following line:
-
-  pip install -r requirements.txt
+You can download all required packages with the following line: pip install -r requirements.txt
