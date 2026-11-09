@@ -10,7 +10,8 @@ from sklearn.base import BaseEstimator
 
 class NeuralNetwork:
     def __init__( self, network_input_size, layer_output_sizes, activation_funcs,
-                  activation_ders, cost_fun, cost_der, lmbda, seed = 2026 ):
+                  activation_ders, cost_fun, cost_der, lmbda, seed = 2026, init = None,
+                  penalty = "l2" ):
         """Description"""       
         self.network_input_size = network_input_size    
         self.layer_output_sizes = layer_output_sizes
@@ -19,8 +20,9 @@ class NeuralNetwork:
         self.cost_fun = cost_fun
         self.cost_der = cost_der
         self.lmbda = lmbda
+        self.penalty = penalty
         self.seed = seed
-        self._initialize_layers()
+        self._initialize_layers(init)
 
     def __str__(self) -> "str":
         return(f"Neural network with {len(self.layer_output_sizes) - 1} hidden layers.")
