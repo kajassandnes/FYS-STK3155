@@ -18,6 +18,12 @@ def ReLU(z):
 def ReLU_der(z):
     return jnp.where(z > 0, 1.0, 0.0)
 
+def leaky_ReLU(z, a=0.01):
+    return jnp.where(z > 0, z, a * z)
+    
+def leaky_ReLU_der(z, a=0.01):
+    return jnp.where(z > 0, 1.0, a)
+
 def sigmoid(z):
     return 1 / (1 + jnp.exp(-z))
 
