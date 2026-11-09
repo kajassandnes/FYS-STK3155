@@ -39,3 +39,6 @@ def OLS(dsgn_mtrx, target):
     """
     theta = np.linalg.pinv(dsgn_mtrx) @ target
     return theta
+
+def runge_function(x):
+    return 1 / (1 + 25 * x.reshape(-1, 1)**2)
