@@ -7,6 +7,9 @@ In the neural_network.py-file, we have written code for our own flexible neural 
 Notes on the code can be found alongside it in the jupyter notebooks. Note that some of the code (especially the cross validation of the classification part) takes a long time to run. All figures are avalible in the /figures folder.
 
 The random seed: "2026" has been used throughout to make results reproducable.
-## Requirements
 
 ## Code Description
+The mnist.npz file contains the data used in the classification analysis. It is imported directly into the part_e notebook.
+The neural_network.py file contains the code for the feed forward neural network written for this project. It also
+contains a subclass: EstimatorClassifier that can be used as an sklearn BaseEstimator class. Lastly, the file contains
+some useful functions such as cost and activation functions, and their derivatives.
